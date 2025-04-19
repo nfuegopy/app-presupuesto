@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../../../products/domain/entities/product.dart';
-import '../providers/budget_provider.dart'; // Crear este provider más adelante
+import '../providers/budget_provider.dart';
 
 class BudgetFormScreen extends StatelessWidget {
   final Product product;
 
-  const BudgetFormScreen({Key? key, required this.product}) : super(key: key);
+  const BudgetFormScreen({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +29,6 @@ class BudgetFormScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Detalles de la máquina
               Text(
                 'Máquina Seleccionada',
                 style: Theme.of(context).textTheme.titleLarge,
@@ -45,7 +46,6 @@ class BudgetFormScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              // Detalles del cliente
               Text(
                 'Datos del Cliente',
                 style: Theme.of(context).textTheme.titleLarge,
@@ -88,17 +88,23 @@ class BudgetFormScreen extends StatelessWidget {
                     value!.isEmpty ? 'El teléfono es obligatorio' : null,
               ),
               const SizedBox(height: 16),
-              // Botón para generar PDF
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (formKey.currentState!.validate()) {
+                    // Cargar el logo desde los assets
+                    final logoBytes = await DefaultAssetBundle.of(context)
+                        .load('assets/images/logo.png');
+                    final logoImage =
+                        pw.MemoryImage(logoBytes.buffer.asUint8List());
+
+                    // Llamar a createBudget con el parámetro logoImage
                     budgetProvider.createBudget(
                       product: product,
                       clientName: nameController.text,
                       clientEmail: emailController.text,
                       clientPhone: phoneController.text,
+                      logoImage: logoImage, // Añadimos el parámetro requerido
                     );
-                    // Mostrar diálogo de éxito o navegar a vista previa
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Presupuesto generado')),
                     );
@@ -107,7 +113,6 @@ class BudgetFormScreen extends StatelessWidget {
                 child: const Text('Generar Presupuesto'),
               ),
               const SizedBox(height: 16),
-              // Footer
               const Center(
                 child: Text(
                   'Desarrollado por Antonio Barrios',
