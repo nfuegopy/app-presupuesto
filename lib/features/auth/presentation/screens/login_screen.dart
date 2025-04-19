@@ -31,6 +31,13 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Logo
+              Image.asset(
+                'assets/images/logo.png', // Ajusta el nombre según tu archivo
+                width: 100,
+                height: 100,
+              ),
+              const SizedBox(height: 16),
               const Text(
                 'App Presupuesto',
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
