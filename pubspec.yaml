@@ -1,0 +1,29 @@
+name: app_presupuesto
+description: Aplicación para generar presupuestos de máquinas.
+version: 1.0.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^3.6.0 # Inicialización de Firebase
+  firebase_auth: ^5.3.1 # Autenticación con Firebase
+  cloud_firestore: ^5.4.4 # Firestore para datos
+  firebase_storage: ^12.3.2 # Storage para imágenes
+  provider: ^6.1.2 # Gestión de estado
+  flutter_spinkit: ^5.2.1 # Indicadores de carga
+  cupertino_icons: ^1.0.8
+  flutter_dotenv: ^5.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/.env

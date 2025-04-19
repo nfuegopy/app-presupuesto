@@ -1,0 +1,14 @@
+# Ignorar archivos de entorno
+.env
+assets/.env
+
+# Ignorar archivos generados por Flutter
+build/
+.dart_tool/
+flutter_export_environment.sh
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+*.lock
+*.DS_Store
