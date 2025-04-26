@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/domain/usecases/sign_in.dart';
+import 'features/auth/domain/usecases/create_user.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/products/presentation/providers/product_provider.dart';
 import 'features/products/domain/usecases/get_products.dart';
@@ -26,21 +28,30 @@ void main() async {
     }
   } catch (e) {
     print('Error al inicializar Firebase: $e');
-    // Puedes manejar el error mostrando una pantalla de error
     return; // Detiene la ejecución si Firebase no se inicializa
   }
 
-  // Crear instancias de repositorios después de inicializar Firebase
-  final authRepository = AuthRepositoryImpl();
+  // Inicializar SharedPreferences
+  final sharedPreferences = await SharedPreferences.getInstance();
+
+  // Crear instancias de repositorios después de inicializar Firebase y SharedPreferences
+  final authRepository = AuthRepositoryImpl(
+    prefs: Future.value(sharedPreferences),
+  );
   final productRepository = ProductRepositoryImpl();
   final signInUseCase = SignIn(authRepository);
+  final createUserUseCase = CreateUser(authRepository);
   final getProductsUseCase = GetProducts(productRepository);
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(signInUseCase),
+          create: (_) => AuthProvider(
+            signInUseCase: signInUseCase,
+            createUserUseCase: createUserUseCase,
+            authRepository: authRepository,
+          ),
         ),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(getProductsUseCase),
