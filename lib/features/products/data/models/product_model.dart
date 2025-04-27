@@ -9,6 +9,9 @@ class ProductModel {
   final String? features;
   final String? imageUrl;
   final String createdAt;
+  final String? brand;
+  final String? model;
+  final String? fuelType;
 
   ProductModel({
     required this.id,
@@ -19,6 +22,9 @@ class ProductModel {
     this.features,
     this.imageUrl,
     required this.createdAt,
+    this.brand,
+    this.model,
+    this.fuelType,
   });
 
   factory ProductModel.fromMap(Map<String, dynamic> data, String id) {
@@ -31,6 +37,9 @@ class ProductModel {
       features: data['features'],
       imageUrl: data['image_url'],
       createdAt: data['created_at'] ?? '',
+      brand: data['brand'],
+      model: data['model'],
+      fuelType: data['fuelType'],
     );
   }
 
@@ -43,6 +52,9 @@ class ProductModel {
       'features': features,
       'image_url': imageUrl,
       'created_at': createdAt,
+      'brand': brand,
+      'model': model,
+      'fuelType': fuelType,
     };
   }
 
@@ -56,6 +68,9 @@ class ProductModel {
       features: features,
       imageUrl: imageUrl,
       createdAt: createdAt,
+      brand: brand,
+      model: model,
+      fuelType: fuelType,
     );
   }
 }

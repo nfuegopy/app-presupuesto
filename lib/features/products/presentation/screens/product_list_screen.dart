@@ -30,37 +30,127 @@ class ProductListScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: productProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : productProvider.errorMessage != null
-              ? Center(child: Text(productProvider.errorMessage!))
-              : productProvider.products.isEmpty
-                  ? const Center(child: Text('No hay máquinas disponibles'))
-                  : ListView.builder(
-                      itemCount: productProvider.products.length,
-                      itemBuilder: (context, index) {
-                        final product = productProvider.products[index];
-                        return Card(
-                          child: ListTile(
-                            title: Text(product.name),
-                            subtitle: Text(
-                                '${product.type} - ${product.price} ${product.currency}'),
-                            trailing: product.imageUrl != null
-                                ? Image.network(product.imageUrl!, width: 50)
-                                : const Icon(Icons.image_not_supported),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      BudgetFormScreen(product: product),
+      body: Column(
+        children: [
+          // Filtros
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Marca',
+                          border: OutlineInputBorder(),
+                        ),
+                        value: productProvider.selectedBrand,
+                        items: productProvider.brands
+                            .map((brand) => DropdownMenuItem(
+                                  value: brand,
+                                  child: Text(brand),
+                                ))
+                            .toList(),
+                        onChanged: (value) => productProvider.setBrand(value),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
+                          border: OutlineInputBorder(),
+                        ),
+                        value: productProvider.selectedModel,
+                        items: productProvider.models
+                            .map((model) => DropdownMenuItem(
+                                  value: model,
+                                  child: Text(model),
+                                ))
+                            .toList(),
+                        onChanged: (value) => productProvider.setModel(value),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo',
+                          border: OutlineInputBorder(),
+                        ),
+                        value: productProvider.selectedType,
+                        items: productProvider.types
+                            .map((type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type),
+                                ))
+                            .toList(),
+                        onChanged: (value) => productProvider.setType(value),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => productProvider.resetFilters(),
+                      child: const Text('Limpiar Filtros'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Lista de productos
+          Expanded(
+            child: productProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : productProvider.errorMessage != null
+                    ? Center(child: Text(productProvider.errorMessage!))
+                    : productProvider.products.isEmpty
+                        ? const Center(
+                            child: Text('No hay máquinas disponibles'))
+                        : ListView.builder(
+                            itemCount: productProvider.products.length,
+                            itemBuilder: (context, index) {
+                              final product = productProvider.products[index];
+                              return Card(
+                                child: ListTile(
+                                  title: Text(product.name),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          '${product.type} - ${product.price} ${product.currency}'),
+                                      if (product.brand != null)
+                                        Text('Marca: ${product.brand}'),
+                                      if (product.model != null)
+                                        Text('Modelo: ${product.model}'),
+                                    ],
+                                  ),
+                                  trailing: product.imageUrl != null
+                                      ? Image.network(product.imageUrl!,
+                                          width: 50)
+                                      : const Icon(Icons.image_not_supported),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            BudgetFormScreen(product: product),
+                                      ),
+                                    );
+                                  },
                                 ),
                               );
                             },
                           ),
-                        );
-                      },
-                    ),
+          ),
+        ],
+      ),
       bottomNavigationBar: const Padding(
         padding: EdgeInsets.all(8.0),
         child: Text(

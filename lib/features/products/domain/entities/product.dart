@@ -7,6 +7,9 @@ class Product {
   final String? features;
   final String? imageUrl;
   final String createdAt;
+  final String? brand;
+  final String? model;
+  final String? fuelType;
 
   Product({
     required this.id,
@@ -17,5 +20,8 @@ class Product {
     this.features,
     this.imageUrl,
     required this.createdAt,
+    this.brand,
+    this.model,
+    this.fuelType,
   });
 }
