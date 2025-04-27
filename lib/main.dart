@@ -73,7 +73,37 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'App-Presupuesto',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        // Usar Material 3 (habilitado por defecto en Flutter 3.16+)
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF00E5FF), // Azul neón como color base
+          brightness: Brightness.dark, // Tema oscuro
+          background: const Color(0xFF212121), // Fondo gris oscuro
+          primary:
+              const Color(0xFF00E5FF), // Azul neón para elementos principales
+          onPrimary: const Color(0xFF121212), // Texto oscuro sobre azul neón
+          surface: const Color(0xFF2A2A2A), // Fondo de cards y superficies
+          onSurface: Colors.white, // Texto blanco sobre superficies
+          error: Colors.redAccent, // Color de error
+          onError: Colors.white, // Texto sobre error
+        ),
+        textTheme: const TextTheme(
+          headlineMedium: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          bodyMedium: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16,
+            color: Colors.white,
+          ),
+          bodySmall: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 14,
+            color: Colors.white70,
+          ),
+        ),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const LoginScreen(),
