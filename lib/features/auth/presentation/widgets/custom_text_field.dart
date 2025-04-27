@@ -7,6 +7,7 @@ class CustomTextField extends StatelessWidget {
   final bool obscureText;
   final bool isRequired;
   final String? errorText;
+  final IconData? prefixIcon;
 
   const CustomTextField({
     super.key,
@@ -16,43 +17,52 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     this.isRequired = false,
     this.errorText,
+    this.prefixIcon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      style: Theme.of(context).textTheme.bodyMedium,
+      decoration: InputDecoration(
+        labelText: isRequired ? '$label *' : label,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: Theme.of(context).colorScheme.primary)
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary, // Borde neón
+            width: 1,
           ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          labelText: isRequired ? '$label *' : label,
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.transparent,
-          errorText: errorText ??
-              (isRequired && controller.text.isEmpty
-                  ? 'Este campo es obligatorio'
-                  : null),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
-        style: const TextStyle(color: Colors.white),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFF00E5FF), // Borde neón más brillante al enfocar
+            width: 2,
+          ),
+        ),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surface.withOpacity(0.8),
+        errorText: errorText ??
+            (isRequired && controller.text.isEmpty
+                ? 'Este campo es obligatorio'
+                : null),
+        errorStyle: TextStyle(color: Theme.of(context).colorScheme.error),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
