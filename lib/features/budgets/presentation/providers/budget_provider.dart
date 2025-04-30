@@ -1,18 +1,21 @@
-import 'dart:math';
 import 'dart:typed_data';
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:uuid/uuid.dart';
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/client.dart';
 import '../../domain/usecases/create_budget.dart';
 import '../../../products/domain/entities/product.dart';
-import 'package:uuid/uuid.dart';
+import '../../data/models/client_model.dart'; // Importar ClientModel para mapear los datos
 
 class BudgetProvider with ChangeNotifier {
-  Client? _client;
+  Client? _client; // Almacenar temporalmente los datos del cliente
+  String? _clientId; // Almacenar el ID del cliente después de crearlo
   Product? _product;
   String? _error;
   String? _currency;
@@ -29,6 +32,7 @@ class BudgetProvider with ChangeNotifier {
   List<Map<String, dynamic>>? _amortizationSchedule;
 
   Client? get client => _client;
+  String? get clientId => _clientId;
   Product? get product => _product;
   String? get error => _error;
   String? get currency => _currency;
@@ -203,26 +207,46 @@ class BudgetProvider with ChangeNotifier {
       return;
     }
 
-    final budget = Budget(
-      id: const Uuid().v4(),
-      client: _client!,
-      product: _product!,
-      currency: _currency!,
-      price: _price!,
-      paymentMethod: _paymentMethod!,
-      financingType: _financingType,
-      delivery: _delivery,
-      paymentFrequency: _paymentFrequency,
-      numberOfInstallments: _numberOfInstallments,
-      hasReinforcements: _hasReinforcements,
-      reinforcementFrequency: _reinforcementFrequency,
-      numberOfReinforcements: _numberOfReinforcements,
-      reinforcementAmount: _reinforcementAmount,
+    // Crear el cliente en Firestore
+    final clientId = const Uuid().v4();
+    final clientModel = ClientModel(
+      id: clientId,
+      razonSocial: _client!.razonSocial,
+      ruc: _client!.ruc,
+      email: _client!.email,
+      telefono: _client!.telefono,
+      ciudad: _client!.ciudad,
+      departamento: _client!.departamento,
       createdBy: user.uid,
-      createdAt: DateTime.now().toIso8601String(),
     );
 
     try {
+      await FirebaseFirestore.instance
+          .collection('clients')
+          .doc(clientId)
+          .set(clientModel.toMap());
+
+      _clientId = clientId; // Almacenar el clientId para usar en el PDF
+
+      final budget = Budget(
+        id: const Uuid().v4(),
+        clientId: clientId, // Usar clientId en lugar de client
+        product: _product!,
+        currency: _currency!,
+        price: _price!,
+        paymentMethod: _paymentMethod!,
+        financingType: _financingType,
+        delivery: _delivery,
+        paymentFrequency: _paymentFrequency,
+        numberOfInstallments: _numberOfInstallments,
+        hasReinforcements: _hasReinforcements,
+        reinforcementFrequency: _reinforcementFrequency,
+        numberOfReinforcements: _numberOfReinforcements,
+        reinforcementAmount: _reinforcementAmount,
+        createdBy: user.uid,
+        createdAt: DateTime.now().toIso8601String(),
+      );
+
       await _createBudget(budget);
       _error = null;
     } catch (e) {
@@ -231,13 +255,36 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<ClientModel?> getClient(String clientId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('clients')
+          .doc(clientId)
+          .get();
+      if (doc.exists) {
+        return ClientModel.fromMap(doc.data()!, clientId);
+      }
+      return null;
+    } catch (e) {
+      _error = 'Error al obtener datos del cliente: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<Uint8List> generateBudgetPdf() async {
-    if (_client == null ||
+    if (_clientId == null ||
         _product == null ||
         _currency == null ||
         _price == null ||
         _paymentMethod == null) {
       throw Exception('Datos incompletos para generar el PDF.');
+    }
+
+    // Obtener los datos del cliente desde Firestore
+    final client = await getClient(_clientId!);
+    if (client == null) {
+      throw Exception('No se pudo cargar los datos del cliente.');
     }
 
     final pdf = pw.Document();
@@ -247,12 +294,12 @@ class BudgetProvider with ChangeNotifier {
         build: (pw.Context context) => [
           pw.Text('Presupuesto', style: pw.TextStyle(fontSize: 24)),
           pw.SizedBox(height: 20),
-          pw.Text('Cliente: ${_client!.razonSocial}'),
-          pw.Text('RUC: ${_client!.ruc}'),
-          if (_client!.email != null) pw.Text('E-mail: ${_client!.email}'),
-          if (_client!.ciudad != null) pw.Text('Ciudad: ${_client!.ciudad}'),
-          if (_client!.departamento != null)
-            pw.Text('Departamento: ${_client!.departamento}'),
+          pw.Text('Cliente: ${client.razonSocial}'),
+          pw.Text('RUC: ${client.ruc}'),
+          if (client.email != null) pw.Text('E-mail: ${client.email}'),
+          if (client.ciudad != null) pw.Text('Ciudad: ${client.ciudad}'),
+          if (client.departamento != null)
+            pw.Text('Departamento: ${client.departamento}'),
           pw.SizedBox(height: 20),
           pw.Text('Máquina: ${_product!.name}'),
           pw.Text('Tipo: ${_product!.type}'),
@@ -318,6 +365,7 @@ class BudgetProvider with ChangeNotifier {
 
   void clear() {
     _client = null;
+    _clientId = null;
     _product = null;
     _currency = null;
     _price = null;

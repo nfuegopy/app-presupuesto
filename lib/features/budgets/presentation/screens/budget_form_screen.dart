@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
-import '../widgets/custom_button.dart';
-import '../widgets/custom_text_field.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../auth/presentation/widgets/custom_text_field.dart';
+import '../../../auth/presentation/widgets/custom_dropdown.dart'; // Usar CustomDropdown
 import '../../../products/domain/entities/product.dart';
 
 class BudgetFormScreen extends StatefulWidget {
@@ -84,7 +85,10 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Datos del Cliente',
-                style: Theme.of(context).textTheme.titleLarge),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    )),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _razonSocialController,
@@ -101,54 +105,42 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomTextField(
               controller: _emailController,
               label: 'E-mail',
-              isRequired: true,
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _telefonoController,
               label: 'Teléfono',
+              keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
+            CustomDropdown(
+              label: 'Departamento',
               value: _departamento,
-              hint: const Text('Departamento'),
-              items: departamentos.map((departamento) {
-                return DropdownMenuItem(
-                  value: departamento,
-                  child: Text(departamento),
-                );
-              }).toList(),
+              items: departamentos,
               onChanged: (value) {
                 setState(() {
                   _departamento = value;
                 });
               },
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
+            CustomDropdown(
+              label: 'Ciudad',
               value: _ciudad,
-              hint: const Text('Ciudad'),
-              items: ciudades.map((ciudad) {
-                return DropdownMenuItem(
-                  value: ciudad,
-                  child: Text(ciudad),
-                );
-              }).toList(),
+              items: ciudades,
               onChanged: (value) {
                 setState(() {
                   _ciudad = value;
                 });
               },
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
             ),
             const SizedBox(height: 32),
             Text('Datos de la Máquina',
-                style: Theme.of(context).textTheme.titleLarge),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    )),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -157,171 +149,150 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Máquina Seleccionada: ${widget.product.name}',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            )),
                     const SizedBox(height: 8),
-                    Text('Tipo: ${widget.product.type}'),
                     Text(
-                        'Precio: ${widget.product.price} ${widget.product.currency}'),
+                      'Tipo: ${widget.product.type}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      'Precio: ${widget.product.price} ${widget.product.currency}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                     if (widget.product.imageUrl != null)
                       Image.network(widget.product.imageUrl!,
-                          width: 100, height: 100),
+                          width: 100, height: 100, fit: BoxFit.cover),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 32),
             Text('Propuesta de Pago',
-                style: Theme.of(context).textTheme.titleLarge),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    )),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
+            CustomDropdown(
+              label: 'Moneda',
               value: _currency,
-              hint: const Text('Moneda'),
-              items: ['USD', 'GS'].map((e) {
-                return DropdownMenuItem(value: e, child: Text(e));
-              }).toList(),
+              items: const ['USD', 'GS'],
               onChanged: (value) {
                 setState(() {
                   _currency = value;
                 });
               },
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Moneda',
-              ),
-              validator: (value) => value == null ? 'Campo obligatorio' : null,
             ),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _priceController,
               label: 'Precio',
+              keyboardType: TextInputType.number,
               isRequired: true,
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
+            CustomDropdown(
+              label: 'Forma de Pago',
               value: _paymentMethod,
-              hint: const Text('Forma de Pago'),
-              items: ['Contado', 'Financiado'].map((e) {
-                return DropdownMenuItem(value: e, child: Text(e));
-              }).toList(),
+              items: const ['Contado', 'Financiado'],
               onChanged: (value) {
                 setState(() {
                   _paymentMethod = value;
                 });
               },
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Forma de Pago',
-              ),
-              validator: (value) => value == null ? 'Campo obligatorio' : null,
             ),
             if (_paymentMethod == 'Financiado') ...[
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
+              CustomDropdown(
+                label: 'Tipo de Financiamiento',
                 value: _financingType,
-                hint: const Text('Tipo de Financiamiento'),
-                items: ['Propia', 'Bancaria'].map((e) {
-                  return DropdownMenuItem(value: e, child: Text(e));
-                }).toList(),
+                items: const ['Propia', 'Bancaria'],
                 onChanged: (value) {
                   setState(() {
                     _financingType = value;
                   });
                 },
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Tipo de Financiamiento',
-                ),
-                validator: (value) =>
-                    value == null ? 'Campo obligatorio' : null,
               ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _deliveryController,
                 label: 'Entrega',
+                keyboardType: TextInputType.number,
                 isRequired: _financingType == 'Propia',
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
+              CustomDropdown(
+                label: 'Frecuencia de Pago',
                 value: _paymentFrequency,
-                hint: const Text('Frecuencia de Pago'),
-                items: ['Mensual', 'Trimestral', 'Semestral'].map((e) {
-                  return DropdownMenuItem(value: e, child: Text(e));
-                }).toList(),
+                items: const ['Mensual', 'Trimestral', 'Semestral'],
                 onChanged: (value) {
                   setState(() {
                     _paymentFrequency = value;
                   });
                 },
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Frecuencia de Pago',
-                ),
-                validator: (value) =>
-                    value == null ? 'Campo obligatorio' : null,
               ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _numberOfInstallmentsController,
                 label: 'Cantidad de Cuotas',
+                keyboardType: TextInputType.number,
                 isRequired: true,
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<bool>(
-                value: _hasReinforcements,
-                hint: const Text('Refuerzos'),
-                items: [
-                  const DropdownMenuItem(value: false, child: Text('No')),
-                  const DropdownMenuItem(value: true, child: Text('Sí')),
-                ],
+              CustomDropdown(
+                label: 'Refuerzos',
+                value: _hasReinforcements?.toString(),
+                items: const ['false', 'true'],
                 onChanged: (value) {
                   setState(() {
-                    _hasReinforcements = value;
+                    _hasReinforcements = value == 'true';
                   });
                 },
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Refuerzos',
-                ),
               ),
               if (_hasReinforcements == true) ...[
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
+                CustomDropdown(
+                  label: 'Frecuencia de Refuerzos',
                   value: _reinforcementFrequency,
-                  hint: const Text('Frecuencia de Refuerzos'),
-                  items: ['Trimestral', 'Semestral', 'Anual'].map((e) {
-                    return DropdownMenuItem(value: e, child: Text(e));
-                  }).toList(),
+                  items: const ['Trimestral', 'Semestral', 'Anual'],
                   onChanged: (value) {
                     setState(() {
                       _reinforcementFrequency = value;
                     });
                   },
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Frecuencia de Refuerzos',
-                  ),
-                  validator: (value) =>
-                      value == null ? 'Campo obligatorio' : null,
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: _numberOfReinforcementsController,
                   label: 'Cantidad de Refuerzos',
+                  keyboardType: TextInputType.number,
                   isRequired: true,
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: _reinforcementAmountController,
                   label: 'Monto de Refuerzos',
+                  keyboardType: TextInputType.number,
                   isRequired: true,
                 ),
               ],
             ],
             const SizedBox(height: 32),
             if (budgetProvider.error != null)
-              Text(
-                budgetProvider.error!,
-                style: const TextStyle(color: Colors.red),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  budgetProvider.error!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                ),
               ),
             const SizedBox(height: 16),
             CustomButton(
@@ -336,7 +307,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   departamento: _departamento,
                 );
 
-                if (budgetProvider.error != null) return;
+                if (budgetProvider.error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(budgetProvider.error!)),
+                  );
+                  return;
+                }
 
                 budgetProvider.updatePaymentDetails(
                   currency: _currency ?? widget.product.currency,

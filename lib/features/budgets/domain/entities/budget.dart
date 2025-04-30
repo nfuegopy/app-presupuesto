@@ -1,9 +1,9 @@
-import '../../domain/entities/client.dart';
+//import '../../domain/entities/client.dart';
 import '../../../products/domain/entities/product.dart';
 
 class Budget {
   final String id;
-  final Client client;
+  final String clientId;
   final Product product;
   final String currency;
   final double price;
@@ -21,7 +21,7 @@ class Budget {
 
   Budget({
     required this.id,
-    required this.client,
+    required this.clientId,
     required this.product,
     required this.currency,
     required this.price,
