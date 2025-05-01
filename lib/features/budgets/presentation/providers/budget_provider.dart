@@ -272,87 +272,162 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  Future<Uint8List> generateBudgetPdf() async {
-    if (_clientId == null ||
-        _product == null ||
-        _currency == null ||
-        _price == null ||
-        _paymentMethod == null) {
-      throw Exception('Datos incompletos para generar el PDF.');
-    }
+Future<Uint8List> generateBudgetPdf() async {
+  if (_clientId == null ||
+      _product == null ||
+      _currency == null ||
+      _price == null ||
+      _paymentMethod == null) {
+    throw Exception('Datos incompletos para generar el PDF.');
+  }
 
-    // Obtener los datos del cliente desde Firestore
-    final client = await getClient(_clientId!);
-    if (client == null) {
-      throw Exception('No se pudo cargar los datos del cliente.');
-    }
+  // Obtener los datos del cliente desde Firestore
+  final client = await getClient(_clientId!);
+  if (client == null) {
+    throw Exception('No se pudo cargar los datos del cliente.');
+  }
 
-    final pdf = pw.Document();
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) => [
-          pw.Text('Presupuesto', style: pw.TextStyle(fontSize: 24)),
-          pw.SizedBox(height: 20),
-          pw.Text('Cliente: ${client.razonSocial}'),
-          pw.Text('RUC: ${client.ruc}'),
-          if (client.email != null) pw.Text('E-mail: ${client.email}'),
-          if (client.ciudad != null) pw.Text('Ciudad: ${client.ciudad}'),
-          if (client.departamento != null)
-            pw.Text('Departamento: ${client.departamento}'),
-          pw.SizedBox(height: 20),
-          pw.Text('Máquina: ${_product!.name}'),
-          pw.Text('Tipo: ${_product!.type}'),
-          pw.Text('Precio: $_price $_currency'),
-          pw.SizedBox(height: 20),
-          pw.Text('Forma de Pago: $_paymentMethod'),
-          if (_paymentMethod == 'Financiado') ...[
-            if (_financingType != null)
-              pw.Text('Tipo de Financiamiento: $_financingType'),
-            if (_delivery != null) pw.Text('Entrega: $_delivery $_currency'),
-            if (_paymentFrequency != null)
-              pw.Text('Frecuencia de Pago: $_paymentFrequency'),
-            if (_numberOfInstallments != null)
-              pw.Text('Cantidad de Cuotas: $_numberOfInstallments'),
-            if (_hasReinforcements == true) ...[
-              pw.Text('Refuerzos: Sí'),
-              if (_reinforcementFrequency != null)
-                pw.Text('Frecuencia de Refuerzos: $_reinforcementFrequency'),
-              if (_numberOfReinforcements != null)
-                pw.Text('Cantidad de Refuerzos: $_numberOfReinforcements'),
-              if (_reinforcementAmount != null)
-                pw.Text('Monto de Refuerzos: $_reinforcementAmount $_currency'),
-            ],
-            if (_amortizationSchedule != null) ...[
-              pw.SizedBox(height: 20),
-              pw.Text('Tabla de Amortización',
-                  style: pw.TextStyle(fontSize: 18)),
-              pw.TableHelper.fromTextArray(
-                headers: [
-                  'Cuota',
-                  'Capital',
-                  'Intereses',
-                  'Pago Total',
-                  'Capital Pendiente'
-                ],
-                data: _amortizationSchedule!
-                    .map((e) => [
-                          e['cuota'].toString(),
-                          e['capital'].toStringAsFixed(2),
-                          e['intereses'].toStringAsFixed(2),
-                          e['pago_total'].toStringAsFixed(2),
-                          e['capital_pendiente'].toStringAsFixed(2),
-                        ])
-                    .toList(),
+  final pdf = pw.Document();
+
+  // Formatear la fecha actual como "Asunción, [día] de [mes] del [año]"
+  final now = DateTime.now();
+  final months = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+  ];
+  final formattedDate = 'Asunción, ${now.day} de ${months[now.month - 1]} del ${now.year}';
+
+  pdf.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      header: (pw.Context context) {
+        return pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(bottom: 20),
+          child: pw.Text(
+            formattedDate,
+            style: pw.TextStyle(fontSize: 12),
+          ),
+        );
+      },
+      footer: (pw.Context context) {
+        return pw.Container(
+          alignment: pw.Alignment.center,
+          margin: const pw.EdgeInsets.only(top: 20),
+          child: pw.Column(
+            children: [
+              pw.Text(
+                'www.enginepy.com',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              ),
+              pw.Text(
+                'Cel. (0985) 2428 11',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
               ),
             ],
+          ),
+        );
+      },
+      build: (pw.Context context) => [
+        // Destinatario
+        pw.Text(
+          'Señor',
+          style: pw.TextStyle(fontSize: 14),
+        ),
+        pw.Text(
+          client.razonSocial,
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Text(
+          'Presente',
+          style: pw.TextStyle(fontSize: 14),
+        ),
+        pw.SizedBox(height: 20),
+
+        // Introducción
+        pw.Text(
+          'Por el presente nos dirigimos a usted a modo de presentar la cotización por el siguiente producto: ${_product!.name}',
+          style: pw.TextStyle(fontSize: 14),
+        ),
+        pw.SizedBox(height: 20),
+
+        // Detalles del Producto
+        pw.Text(
+          'Detalles del Producto',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 10),
+        pw.Text('Máquina: ${_product!.name}'),
+        pw.Text('Tipo: ${_product!.type}'),
+        if (_product!.brand != null) pw.Text('Marca: ${_product!.brand}'),
+        if (_product!.model != null) pw.Text('Modelo: ${_product!.model}'),
+        if (_product!.fuelType != null) pw.Text('Tipo de Combustible: ${_product!.fuelType}'),
+        pw.SizedBox(height: 10),
+
+        // Precio Unitario
+        pw.Text('Precio Unitario: $_price $_currency'),
+        pw.SizedBox(height: 20),
+
+        // Detalles de los Pagos
+        pw.Text(
+          'Detalles de los Pagos',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 10),
+        pw.Text('Forma de Pago: $_paymentMethod'),
+        if (_paymentMethod == 'Financiado') ...[
+          if (_financingType != null)
+            pw.Text('Tipo de Financiamiento: $_financingType'),
+          if (_delivery != null) pw.Text('Entrega: $_delivery $_currency'),
+          if (_paymentFrequency != null)
+            pw.Text('Frecuencia de Pago: $_paymentFrequency'),
+          if (_numberOfInstallments != null)
+            pw.Text('Cantidad de Cuotas: $_numberOfInstallments'),
+          if (_hasReinforcements == true) ...[
+            pw.Text('Refuerzos: Sí'),
+            if (_reinforcementFrequency != null)
+              pw.Text('Frecuencia de Refuerzos: $_reinforcementFrequency'),
+            if (_numberOfReinforcements != null)
+              pw.Text('Cantidad de Refuerzos: $_numberOfReinforcements'),
+            if (_reinforcementAmount != null)
+              pw.Text('Monto de Refuerzos: $_reinforcementAmount $_currency'),
+          ],
+          if (_amortizationSchedule != null) ...[
+            pw.SizedBox(height: 20),
+            pw.Text(
+              'Tabla de Amortización',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Table.fromTextArray(
+              headers: [
+                'Cuota',
+                'Capital',
+                'Intereses',
+                'Pago Total',
+                'Capital Pendiente',
+              ],
+              data: _amortizationSchedule!
+                  .map((e) => [
+                        e['cuota'].toString(),
+                        e['capital'].toStringAsFixed(2),
+                        e['intereses'].toStringAsFixed(2),
+                        e['pago_total'].toStringAsFixed(2),
+                        e['capital_pendiente'].toStringAsFixed(2),
+                      ])
+                  .toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              cellAlignment: pw.Alignment.center,
+              cellPadding: const pw.EdgeInsets.all(5),
+            ),
           ],
         ],
-      ),
-    );
+      ],
+    ),
+  );
 
-    return pdf.save();
-  }
+  return pdf.save();
+}
+
 
   Future<void> saveAndSharePdf() async {
     final pdfBytes = await generateBudgetPdf();

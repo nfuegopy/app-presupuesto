@@ -15,6 +15,7 @@ import 'features/budgets/presentation/providers/budget_provider.dart';
 import 'features/budgets/domain/usecases/create_budget.dart';
 import 'features/budgets/data/repositories/budget_repository_impl.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/splash_screen.dart'; // Añadir esta importación
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,7 +83,8 @@ class MyApp extends StatelessWidget {
           seedColor: const Color(0xFF00E5FF), // Azul neón como color base
           brightness: Brightness.dark, // Tema oscuro
           surface: const Color(0xFF212121), // Fondo gris oscuro
-          primary: const Color(0xFF00E5FF), // Azul neón para elementos principales
+          primary:
+              const Color(0xFF00E5FF), // Azul neón para elementos principales
           onPrimary: const Color(0xFF121212), // Texto oscuro sobre azul neón
           // surface: const Color(0xFF2A2A2A), // Fondo de cards y superficies
           onSurface: Colors.white, // Texto blanco sobre superficies
@@ -109,7 +111,7 @@ class MyApp extends StatelessWidget {
         ),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const LoginScreen(),
+      home: const SplashScreen(), // Cambiar a SplashScreen
     );
   }
 }
