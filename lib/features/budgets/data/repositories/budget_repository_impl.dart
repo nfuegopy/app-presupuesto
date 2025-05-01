@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/budget_model.dart';
-import '../models/client_model.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../domain/entities/budget.dart';
 import '../../domain/repositories/budget_repository.dart';
@@ -12,16 +11,10 @@ class BudgetRepositoryImpl implements BudgetRepository {
 
   @override
   Future<void> createBudget(Budget budget) async {
+    // Crear el presupuesto con el clientId que ya está en budget
     final budgetModel = BudgetModel(
       id: budget.id,
-      client: ClientModel(
-        razonSocial: budget.client.razonSocial,
-        ruc: budget.client.ruc,
-        email: budget.client.email,
-        telefono: budget.client.telefono,
-        ciudad: budget.client.ciudad,
-        departamento: budget.client.departamento,
-      ),
+      clientId: budget.clientId, // Usar el clientId que ya está en budget
       product: ProductModel(
         id: budget.product.id,
         name: budget.product.name,

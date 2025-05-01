@@ -1,9 +1,9 @@
-import './client_model.dart';
 import '../../../products/data/models/product_model.dart';
 
 class BudgetModel {
   final String id;
-  final ClientModel client;
+  final String
+      clientId; // Cambiado de ClientModel a String (referencia al cliente)
   final ProductModel product;
   final String currency;
   final double price;
@@ -21,7 +21,7 @@ class BudgetModel {
 
   BudgetModel({
     required this.id,
-    required this.client,
+    required this.clientId,
     required this.product,
     required this.currency,
     required this.price,
@@ -40,7 +40,7 @@ class BudgetModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'client': client.toMap(),
+      'clientId': clientId, // Almacenar solo el ID del cliente
       'product': product.toMap(),
       'currency': currency,
       'price': price,
@@ -61,7 +61,7 @@ class BudgetModel {
   factory BudgetModel.fromMap(Map<String, dynamic> data, String id) {
     return BudgetModel(
       id: id,
-      client: ClientModel.fromMap(data['client']),
+      clientId: data['clientId'] ?? '',
       product: ProductModel.fromMap(data['product'], id),
       currency: data['currency'],
       price: data['price'].toDouble(),

@@ -6,6 +6,7 @@ import '../../../budgets/presentation/screens/budget_form_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../auth/presentation/widgets/custom_dropdown.dart'; // Nueva importación
 
 class ProductListScreen extends StatelessWidget {
   const ProductListScreen({super.key});
@@ -87,111 +88,19 @@ class ProductListScreen extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          decoration: InputDecoration(
-                            labelText: 'Marca',
-                            labelStyle:
-                                TextStyle(color: Colors.white.withOpacity(0.7)),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.5),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.5),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF00E5FF),
-                                width: 2,
-                              ),
-                            ),
-                            filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surface
-                                .withOpacity(0.8),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 16.0),
-                          ),
+                        child: CustomDropdown(
+                          label: 'Marca',
                           value: productProvider.selectedBrand,
-                          items: productProvider.brands
-                              .map((brand) => DropdownMenuItem(
-                                    value: brand,
-                                    child: Text(
-                                      brand,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium,
-                                    ),
-                                  ))
-                              .toList(),
+                          items: productProvider.brands,
                           onChanged: (value) => productProvider.setBrand(value),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          decoration: InputDecoration(
-                            labelText: 'Modelo',
-                            labelStyle:
-                                TextStyle(color: Colors.white.withOpacity(0.7)),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.5),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.5),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF00E5FF),
-                                width: 2,
-                              ),
-                            ),
-                            filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surface
-                                .withOpacity(0.8),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 16.0),
-                          ),
+                        child: CustomDropdown(
+                          label: 'Modelo',
                           value: productProvider.selectedModel,
-                          items: productProvider.models
-                              .map((model) => DropdownMenuItem(
-                                    value: model,
-                                    child: Text(
-                                      model,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium,
-                                    ),
-                                  ))
-                              .toList(),
+                          items: productProvider.models,
                           onChanged: (value) => productProvider.setModel(value),
                         ),
                       ),
@@ -201,56 +110,10 @@ class ProductListScreen extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          decoration: InputDecoration(
-                            labelText: 'Tipo',
-                            labelStyle:
-                                TextStyle(color: Colors.white.withOpacity(0.7)),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.5),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.5),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF00E5FF),
-                                width: 2,
-                              ),
-                            ),
-                            filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surface
-                                .withOpacity(0.8),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 16.0),
-                          ),
+                        child: CustomDropdown(
+                          label: 'Tipo',
                           value: productProvider.selectedType,
-                          items: productProvider.types
-                              .map((type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(
-                                      type,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium,
-                                    ),
-                                  ))
-                              .toList(),
+                          items: productProvider.types,
                           onChanged: (value) => productProvider.setType(value),
                         ),
                       ),
