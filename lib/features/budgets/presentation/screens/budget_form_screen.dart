@@ -87,7 +87,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
           16.0,
           16.0,
           16.0,
-          16.0 + bottomPadding + 16.0, // Añadir padding adicional para la barra de navegación
+          16.0 +
+              bottomPadding +
+              16.0, // Añadir padding adicional para la barra de navegación
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,7 +377,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   return;
                 }
 
-                await budgetProvider.saveAndSharePdf();
+                // Pasar el context a saveAndSharePdf
+                await budgetProvider.saveAndSharePdf(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Presupuesto generado y guardado')),
