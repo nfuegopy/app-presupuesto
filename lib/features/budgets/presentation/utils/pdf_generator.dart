@@ -67,76 +67,17 @@ class PdfGenerator {
     final formattedDate =
         'Asunción, ${now.day} de ${months[now.month - 1]} del ${now.year}';
 
-    // Determinar el plan seleccionado y calcular los valores dinámicamente
+    // Determinar el plan seleccionado y usar los valores de amortizationSchedule
     List<List<String>> financingPlans = [];
     if (paymentMethod == 'Financiado' &&
         currency != null &&
         paymentFrequency != null &&
-        numberOfInstallments != null) {
-      double capital = price - (delivery ?? 0);
-      double monthlyRate = currency == 'USD' ? 0.015 : 0.018;
-      int effectiveInstallments;
-      if (paymentFrequency == 'Mensual') {
-        effectiveInstallments = 60; // 60 meses = 5 años
-      } else if (paymentFrequency == 'Semestral') {
-        effectiveInstallments = 10; // 10 semestres = 5 años
-      } else if (paymentFrequency == 'Trimestral') {
-        effectiveInstallments = 20; // 20 trimestres = 5 años
-      } else if (paymentFrequency == 'Anual') {
-        effectiveInstallments = 5; // 5 años
-      } else {
-        effectiveInstallments = 60; // Valor por defecto
-      }
-
-      // Ajustar la tasa de interés según la frecuencia
-      double adjustedRate = monthlyRate;
-      if (paymentFrequency == 'Semestral') {
-        adjustedRate = monthlyRate * 6; // Tasa para 6 meses
-      } else if (paymentFrequency == 'Trimestral') {
-        adjustedRate = monthlyRate * 3; // Tasa para 3 meses
-      } else if (paymentFrequency == 'Anual') {
-        adjustedRate = monthlyRate * 12; // Tasa para 12 meses
-      }
-
-      // Generar refuerzos si aplica
-      Map<int, double>? reinforcements;
-      if (hasReinforcements == true &&
-          numberOfReinforcements != null &&
-          reinforcementAmount != null &&
-          reinforcementFrequency != null) {
-        int interval;
-        switch (reinforcementFrequency) {
-          case 'Trimestral':
-            interval = 3;
-            break;
-          case 'Semestral':
-            interval = 6;
-            break;
-          case 'Anual':
-            interval = 12;
-            break;
-          default:
-            interval = 3;
-        }
-        reinforcements = {};
-        for (int i = 1; i <= numberOfReinforcements; i++) {
-          reinforcements[i * interval] = reinforcementAmount;
-        }
-      }
-
-      // Calcular la cuota y el total usando AmortizationCalculator
-      var schedule = AmortizationCalculator.calculateFrenchAmortization(
-        capital: capital,
-        monthlyRate: adjustedRate,
-        numberOfInstallments: effectiveInstallments,
-        fixedMonthlyPayment: 0, // Dejar en 0 para calcular dinámicamente
-        reinforcements: reinforcements,
-      );
-
-      // La cuota base es el pago total de la primera cuota, sin incluir refuerzos
-      double monthlyPayment =
-          schedule.isNotEmpty ? (schedule[0]['pago_total'] as double) : 0;
-      double totalToPay = schedule.fold(
+        numberOfInstallments != null &&
+        amortizationSchedule != null &&
+        amortizationSchedule.isNotEmpty) {
+      // Usar los valores de amortizationSchedule
+      double monthlyPayment = amortizationSchedule[0]['pago_total'] as double;
+      double totalToPay = amortizationSchedule.fold(
               0.0, (sum, item) => sum + (item['pago_total'] as double)) +
           (delivery ?? 0);
 
@@ -182,7 +123,7 @@ class PdfGenerator {
                 ? '$currency ${delivery.toStringAsFixed(2)}.-'
                 : '-',
             '$currency ${monthlyPayment.toStringAsFixed(2)}',
-            '$effectiveInstallments',
+            '$numberOfInstallments',
             hasReinforcements == true && numberOfReinforcements != null
                 ? '$numberOfReinforcements'
                 : '-',
@@ -237,7 +178,7 @@ class PdfGenerator {
           );
         },
         build: (pw.Context context) {
-          // Forzar el total a abonar según las selecciones
+          // Usar los valores de amortizationSchedule para los detalles de pago
           double totalToPay = price;
           if (amortizationSchedule != null && amortizationSchedule.isNotEmpty) {
             totalToPay = amortizationSchedule.fold(
@@ -251,6 +192,11 @@ class PdfGenerator {
           double? monthlyPayment;
           if (amortizationSchedule != null && amortizationSchedule.isNotEmpty) {
             monthlyPayment = amortizationSchedule[0]['pago_total'] as double;
+            if (hasReinforcements == true &&
+                numberOfInstallments != null &&
+                reinforcementAmount != null) {
+              // No ajustamos monthlyPayment aquí, lo mostramos tal como viene
+            }
           }
 
           return [
