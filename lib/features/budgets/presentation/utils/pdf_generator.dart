@@ -68,7 +68,7 @@ class PdfGenerator {
     final formattedDate =
         'Asunción, ${now.day} de ${months[now.month - 1]} del ${now.year}';
 
-    // Determinar el plan seleccionado y calcular los valores dinámicamente
+    // Determinar el plan seleccionado y usar los valores de amortizationSchedule
     List<List<String>> financingPlans = [];
     if (paymentMethod == 'Financiado' &&
         currency != null &&
@@ -186,7 +186,7 @@ class PdfGenerator {
                 ? '$currency ${delivery.toStringAsFixed(2)}.-'
                 : '-',
             '$currency ${monthlyPayment.toStringAsFixed(2)}',
-            '$effectiveInstallments',
+            '$numberOfInstallments',
             hasReinforcements == true && numberOfReinforcements != null
                 ? '$numberOfReinforcements'
                 : '-',
@@ -245,6 +245,11 @@ class PdfGenerator {
           double? monthlyPayment;
           if (amortizationSchedule != null && amortizationSchedule.isNotEmpty) {
             monthlyPayment = amortizationSchedule[0]['pago_total'] as double;
+            if (hasReinforcements == true &&
+                numberOfInstallments != null &&
+                reinforcementAmount != null) {
+              // No ajustamos monthlyPayment aquí, lo mostramos tal como viene
+            }
           }
 
           return [
