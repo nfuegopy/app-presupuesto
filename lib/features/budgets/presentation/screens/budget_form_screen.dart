@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
-import '../../../auth/presentation/widgets/custom_dropdown.dart'; // Usar CustomDropdown
+import '../../../auth/presentation/widgets/custom_dropdown.dart';
 import '../../../products/domain/entities/product.dart';
 
 class BudgetFormScreen extends StatefulWidget {
@@ -77,18 +77,30 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   Widget build(BuildContext context) {
     final budgetProvider = Provider.of<BudgetProvider>(context);
 
+    // Obtener el padding inferior del sistema (para la barra de navegación)
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Formulario de Presupuesto')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.fromLTRB(
+          16.0,
+          16.0,
+          16.0,
+          16.0 +
+              bottomPadding +
+              16.0, // Añadir padding adicional para la barra de navegación
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Datos del Cliente',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    )),
+            Text(
+              'Datos del Cliente',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _razonSocialController,
@@ -136,11 +148,13 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               },
             ),
             const SizedBox(height: 32),
-            Text('Datos de la Máquina',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    )),
+            Text(
+              'Datos de la Máquina',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
             const SizedBox(height: 16),
             Card(
               child: Padding(
@@ -148,10 +162,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Máquina Seleccionada: ${widget.product.name}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            )),
+                    Text(
+                      'Máquina Seleccionada: ${widget.product.name}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Tipo: ${widget.product.type}',
@@ -162,18 +178,24 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     if (widget.product.imageUrl != null)
-                      Image.network(widget.product.imageUrl!,
-                          width: 100, height: 100, fit: BoxFit.cover),
+                      Image.network(
+                        widget.product.imageUrl!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 32),
-            Text('Propuesta de Pago',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    )),
+            Text(
+              'Propuesta de Pago',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
             const SizedBox(height: 16),
             CustomDropdown(
               label: 'Moneda',
@@ -355,7 +377,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   return;
                 }
 
-                await budgetProvider.saveAndSharePdf();
+                // Pasar el context a saveAndSharePdf
+                await budgetProvider.saveAndSharePdf(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Presupuesto generado y guardado')),
