@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
+import 'dart:async';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,11 +16,15 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Navegar a la pantalla de login después de 3 segundos
     Timer(const Duration(seconds: 3), () {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (context) => authProvider.user != null
+              ? const HomeScreen()
+              : const LoginScreen(),
+        ),
       );
     });
   }
@@ -30,14 +37,12 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
             Image.asset(
               'assets/images/logo.png',
               width: 150,
               height: 150,
             ),
             const SizedBox(height: 16),
-            // Texto "Desarrollado por Antonio Barrios"
             Text(
               'Desarrollado por Antonio Barrios',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
