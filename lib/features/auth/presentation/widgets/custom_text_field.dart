@@ -8,6 +8,7 @@ class CustomTextField extends StatelessWidget {
   final bool isRequired;
   final String? errorText;
   final IconData? prefixIcon;
+  final int? maxLines;
 
   const CustomTextField({
     super.key,
@@ -18,6 +19,7 @@ class CustomTextField extends StatelessWidget {
     this.isRequired = false,
     this.errorText,
     this.prefixIcon,
+    this.maxLines = 1,
   });
 
   @override
@@ -25,6 +27,7 @@ class CustomTextField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      maxLines: maxLines,
       obscureText: obscureText,
       style: Theme.of(context).textTheme.bodyMedium,
       decoration: InputDecoration(

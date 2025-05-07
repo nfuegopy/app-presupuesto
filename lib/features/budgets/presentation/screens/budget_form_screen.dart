@@ -25,6 +25,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _numberOfInstallmentsController = TextEditingController();
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
+  final _offerController =
+      TextEditingController(); // Nuevo controlador para "Ofrecemos"
   String? _ciudad;
   String? _departamento;
   String? _currency;
@@ -70,6 +72,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _numberOfInstallmentsController.dispose();
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
+    _offerController.dispose(); // Dispose del nuevo controlador
     super.dispose();
   }
 
@@ -301,6 +304,13 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 ),
               ],
             ],
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _offerController,
+              label: 'Ofrecemos',
+              keyboardType: TextInputType.multiline,
+              maxLines: 3,
+            ),
             const SizedBox(height: 32),
             if (budgetProvider.error != null)
               Container(
@@ -360,6 +370,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _reinforcementAmountController.text.isNotEmpty
                           ? double.parse(_reinforcementAmountController.text)
                           : null,
+                  offer: _offerController.text
+                      .trim(), // Pasar el campo "Ofrecemos"
                 );
 
                 if (budgetProvider.error != null) {

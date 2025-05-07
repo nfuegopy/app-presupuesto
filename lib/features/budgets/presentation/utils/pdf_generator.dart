@@ -26,6 +26,7 @@ class PdfGenerator {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     List<Map<String, dynamic>>? amortizationSchedule,
+    String? offer, // Parámetro para "Ofrecemos"
   }) async {
     // Cargar el logo desde los assets
     final Uint8List logoData = await DefaultAssetBundle.of(context)
@@ -347,6 +348,14 @@ class PdfGenerator {
               pw.Text(
                   'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
             ],
+            if (offer != null && offer.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Text('OFRECEMOS',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 10),
+              pw.Text(offer, style: pw.TextStyle(fontSize: 14)),
+            ],
           ];
         },
       ),
@@ -371,6 +380,7 @@ class PdfGenerator {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     List<Map<String, dynamic>>? amortizationSchedule,
+    String? offer, // Parámetro para "Ofrecemos"
   }) async {
     final pdfBytes = await generateBudgetPdf(
       context: context,
@@ -388,6 +398,7 @@ class PdfGenerator {
       numberOfReinforcements: numberOfReinforcements,
       reinforcementAmount: reinforcementAmount,
       amortizationSchedule: amortizationSchedule,
+      offer: offer,
     );
     await Printing.sharePdf(
       bytes: pdfBytes,

@@ -16,6 +16,7 @@ class Budget {
   final String? reinforcementFrequency;
   final int? numberOfReinforcements;
   final double? reinforcementAmount;
+  final String? offer;
   final String createdBy;
   final String createdAt;
 
@@ -34,6 +35,7 @@ class Budget {
     this.reinforcementFrequency,
     this.numberOfReinforcements,
     this.reinforcementAmount,
+     this.offer,
     required this.createdBy,
     required this.createdAt,
   });
