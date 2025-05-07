@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../data/models/client_model.dart';
 import '../../../products/domain/entities/product.dart';
 import '../utils/amortization_calculator.dart';
+import 'dart:math';
 
 class PdfGenerator {
   Future<Uint8List> generateBudgetPdf({
@@ -74,28 +75,24 @@ class PdfGenerator {
         paymentFrequency != null &&
         numberOfInstallments != null) {
       double capital = price - (delivery ?? 0);
-      double monthlyRate = currency == 'USD' ? 0.015 : 0.018;
+      double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
       int effectiveInstallments;
-      if (paymentFrequency == 'Mensual') {
-        effectiveInstallments = 60; // 60 meses = 5 años
-      } else if (paymentFrequency == 'Semestral') {
-        effectiveInstallments = 10; // 10 semestres = 5 años
-      } else if (paymentFrequency == 'Trimestral') {
-        effectiveInstallments = 20; // 20 trimestres = 5 años
-      } else if (paymentFrequency == 'Anual') {
-        effectiveInstallments = 5; // 5 años
-      } else {
-        effectiveInstallments = 60; // Valor por defecto
-      }
-
-      // Ajustar la tasa de interés según la frecuencia
       double adjustedRate = monthlyRate;
-      if (paymentFrequency == 'Semestral') {
-        adjustedRate = monthlyRate * 6; // Tasa para 6 meses
+
+      // Ajustar número de cuotas y tasa según la frecuencia
+      if (paymentFrequency == 'Mensual') {
+        effectiveInstallments = numberOfInstallments;
+      } else if (paymentFrequency == 'Semestral') {
+        effectiveInstallments = numberOfInstallments ~/ 6;
+        adjustedRate = pow(1 + monthlyRate, 6) - 1; // Tasa para 6 meses
       } else if (paymentFrequency == 'Trimestral') {
-        adjustedRate = monthlyRate * 3; // Tasa para 3 meses
+        effectiveInstallments = numberOfInstallments ~/ 3;
+        adjustedRate = pow(1 + monthlyRate, 3) - 1; // Tasa para 3 meses
       } else if (paymentFrequency == 'Anual') {
-        adjustedRate = monthlyRate * 12; // Tasa para 12 meses
+        effectiveInstallments = numberOfInstallments ~/ 12;
+        adjustedRate = pow(1 + monthlyRate, 12) - 1; // Tasa para 12 meses
+      } else {
+        effectiveInstallments = numberOfInstallments;
       }
 
       // Generar refuerzos si aplica
@@ -124,18 +121,25 @@ class PdfGenerator {
         }
       }
 
-      // Calcular la cuota y el total usando AmortizationCalculator
+      // Calcular la cuota fija usando el método francés
+      double fixedPayment = (capital *
+              adjustedRate *
+              pow(1 + adjustedRate, effectiveInstallments)) /
+          (pow(1 + adjustedRate, effectiveInstallments) - 1);
+
+      // Generar la tabla de amortización
       var schedule = AmortizationCalculator.calculateFrenchAmortization(
         capital: capital,
         monthlyRate: adjustedRate,
         numberOfInstallments: effectiveInstallments,
-        fixedMonthlyPayment: 0, // Dejar en 0 para calcular dinámicamente
+        fixedMonthlyPayment: fixedPayment,
         reinforcements: reinforcements,
       );
 
-      // La cuota base es el pago total de la primera cuota, sin incluir refuerzos
+      // Obtener el pago de la primera cuota (sin refuerzos)
       double monthlyPayment =
           schedule.isNotEmpty ? (schedule[0]['pago_total'] as double) : 0;
+      // Calcular el total sumando todos los pagos más la entrega
       double totalToPay = schedule.fold(
               0.0, (sum, item) => sum + (item['pago_total'] as double)) +
           (delivery ?? 0);
@@ -201,19 +205,13 @@ class PdfGenerator {
         header: (pw.Context context) {
           return pw.Column(
             children: [
-              pw.Image(
-                pw.MemoryImage(logoData),
-                width: 100,
-                height: 100,
-              ),
+              pw.Image(pw.MemoryImage(logoData), width: 100, height: 100),
               pw.SizedBox(height: 10),
               pw.Container(
                 alignment: pw.Alignment.centerRight,
                 margin: const pw.EdgeInsets.only(bottom: 20),
-                child: pw.Text(
-                  formattedDate,
-                  style: pw.TextStyle(fontSize: 12),
-                ),
+                child:
+                    pw.Text(formattedDate, style: pw.TextStyle(fontSize: 12)),
               ),
             ],
           );
@@ -224,20 +222,16 @@ class PdfGenerator {
             margin: const pw.EdgeInsets.only(top: 20),
             child: pw.Column(
               children: [
-                pw.Text(
-                  'www.enginepy.com',
-                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                ),
-                pw.Text(
-                  'Cel. (0985) 242811',
-                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                ),
+                pw.Text('www.enginepy.com',
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                pw.Text('Cel. (0985) 242811',
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
               ],
             ),
           );
         },
         build: (pw.Context context) {
-          // Forzar el total a abonar según las selecciones
+          // Calcular el total a abonar
           double totalToPay = price;
           if (amortizationSchedule != null && amortizationSchedule.isNotEmpty) {
             totalToPay = amortizationSchedule.fold(
@@ -247,7 +241,7 @@ class PdfGenerator {
             totalToPay += (delivery ?? 0);
           }
 
-          // Calcular el pago mensual para mostrar
+          // Obtener el pago mensual para mostrar
           double? monthlyPayment;
           if (amortizationSchedule != null && amortizationSchedule.isNotEmpty) {
             monthlyPayment = amortizationSchedule[0]['pago_total'] as double;
@@ -255,22 +249,18 @@ class PdfGenerator {
 
           return [
             pw.Text('Señor', style: pw.TextStyle(fontSize: 14)),
-            pw.Text('Señor', style: pw.TextStyle(fontSize: 14)),
-            pw.Text('Presente', style: pw.TextStyle(fontSize: 14)),
-            pw.Text(
-              client.razonSocial,
-              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-            ),
+            pw.Text(client.razonSocial,
+                style:
+                    pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 20),
             pw.Text(
               'Por el presente nos dirigimos a usted a modo de presentar la cotización por el siguiente producto: (1) Una ${product.name}',
               style: pw.TextStyle(fontSize: 14),
             ),
             pw.SizedBox(height: 20),
-            pw.Text(
-              'MAQUINARIA',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-            ),
+            pw.Text('MAQUINARIA',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 10),
             pw.Text('Retropala ${product.name}'),
             pw.SizedBox(height: 10),
@@ -282,21 +272,16 @@ class PdfGenerator {
               pw.Text('Descripción: ${product.features}'),
             pw.SizedBox(height: 10),
             if (productImageData != null) ...[
-              pw.Image(
-                pw.MemoryImage(productImageData),
-                width: 100,
-                height: 100,
-              ),
+              pw.Image(pw.MemoryImage(productImageData),
+                  width: 100, height: 100),
               pw.SizedBox(height: 10),
             ],
             pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-'),
             pw.SizedBox(height: 20),
             if (financingPlans.isNotEmpty) ...[
-              pw.Text(
-                'FINANCIACIÓN',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-              ),
+              pw.Text('FINANCIACIÓN',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 10),
               pw.Text('PLAN DE FINANCIACIÓN $currency'),
               pw.SizedBox(height: 10),
@@ -317,10 +302,9 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 20),
             ],
-            pw.Text(
-              'DETALLES DE LOS PAGOS',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-            ),
+            pw.Text('DETALLES DE LOS PAGOS',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 10),
             pw.Text('Forma de Pago: $paymentMethod'),
             if (paymentMethod == 'Financiado') ...[

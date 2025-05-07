@@ -145,25 +145,18 @@ class BudgetProvider with ChangeNotifier {
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      // Definir la cuota fija según el PDF original
-      double fixedMonthlyPayment;
-      if (currency == 'USD' && delivery > 0) {
-        fixedMonthlyPayment = 1265.0; // Cuota fija según el PDF original
-      } else {
-        // Calcular la cuota usando el método francés para otros casos
-        double capital = price - delivery;
-        double monthlyRate = currency == 'USD' ? 0.015 : 0.018;
-        fixedMonthlyPayment = (capital *
-                monthlyRate *
-                pow(1 + monthlyRate, numberOfInstallments)) /
-            (pow(1 + monthlyRate, numberOfInstallments) - 1);
-      }
+      // Calcular la cuota usando el método francés
+      double capital = price - delivery;
+      double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
+      double fixedMonthlyPayment =
+          (capital * monthlyRate * pow(1 + monthlyRate, numberOfInstallments)) /
+              (pow(1 + monthlyRate, numberOfInstallments) - 1);
 
-      // Calcular la tabla de amortización con la cuota fija
+      // Generar la tabla de amortización
       _amortizationSchedule =
           AmortizationCalculator.calculateFrenchAmortization(
-        capital: price - delivery,
-        monthlyRate: currency == 'USD' ? 0.015 : 0.018,
+        capital: capital,
+        monthlyRate: monthlyRate,
         numberOfInstallments: numberOfInstallments,
         fixedMonthlyPayment: fixedMonthlyPayment,
         reinforcements: hasReinforcements == true &&
