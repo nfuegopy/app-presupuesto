@@ -27,6 +27,7 @@ class BudgetProvider with ChangeNotifier {
   String? _reinforcementFrequency;
   int? _numberOfReinforcements;
   double? _reinforcementAmount;
+  String? _offer; // Campo para "Ofrecemos"
   List<Map<String, dynamic>>? _amortizationSchedule;
 
   Client? get client => _client;
@@ -44,6 +45,7 @@ class BudgetProvider with ChangeNotifier {
   String? get reinforcementFrequency => _reinforcementFrequency;
   int? get numberOfReinforcements => _numberOfReinforcements;
   double? get reinforcementAmount => _reinforcementAmount;
+  String? get offer => _offer;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
 
   final CreateBudget _createBudget;
@@ -100,6 +102,7 @@ class BudgetProvider with ChangeNotifier {
     String? reinforcementFrequency,
     int? numberOfReinforcements,
     double? reinforcementAmount,
+    String? offer,
   }) {
     if (price <= 0) {
       _error = 'El precio debe ser mayor a 0.';
@@ -140,6 +143,7 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementFrequency = reinforcementFrequency;
     _numberOfReinforcements = numberOfReinforcements;
     _reinforcementAmount = reinforcementAmount;
+    _offer = offer;
     _error = null;
 
     if (paymentMethod == 'Financiado' &&
@@ -248,6 +252,7 @@ class BudgetProvider with ChangeNotifier {
         reinforcementFrequency: _reinforcementFrequency,
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
+        offer: _offer,
         createdBy: user.uid,
         createdAt: DateTime.now().toIso8601String(),
       );
@@ -277,7 +282,7 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  Future<void> saveAndSharePdf(BuildContext context) async {
+  Future<void> saveAndSharePdf(BuildContext context, {String? offer}) async {
     try {
       final client = await getClient(_clientId!);
       if (client == null) {
@@ -302,6 +307,8 @@ class BudgetProvider with ChangeNotifier {
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
         amortizationSchedule: _amortizationSchedule,
+        offer:
+            _offer, // Usar _offer directamente, ya que está almacenado en el provider
       );
       _error = null;
     } catch (e) {
@@ -325,6 +332,7 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementFrequency = null;
     _numberOfReinforcements = null;
     _reinforcementAmount = null;
+    _offer = null;
     _amortizationSchedule = null;
     _error = null;
     notifyListeners();
