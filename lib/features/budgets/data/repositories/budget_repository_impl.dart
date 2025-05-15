@@ -11,10 +11,9 @@ class BudgetRepositoryImpl implements BudgetRepository {
 
   @override
   Future<void> createBudget(Budget budget) async {
-    // Crear el presupuesto con el clientId que ya está en budget
     final budgetModel = BudgetModel(
       id: budget.id,
-      clientId: budget.clientId, // Usar el clientId que ya está en budget
+      clientId: budget.clientId,
       product: ProductModel(
         id: budget.product.id,
         name: budget.product.name,
@@ -39,6 +38,8 @@ class BudgetRepositoryImpl implements BudgetRepository {
       reinforcementFrequency: budget.reinforcementFrequency,
       numberOfReinforcements: budget.numberOfReinforcements,
       reinforcementAmount: budget.reinforcementAmount,
+      validityOffer: budget.validityOffer,
+      benefits: budget.benefits,
       createdBy: budget.createdBy,
       createdAt: budget.createdAt,
     );

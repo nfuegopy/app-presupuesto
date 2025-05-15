@@ -26,7 +26,8 @@ class PdfGenerator {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     List<Map<String, dynamic>>? amortizationSchedule,
-    String? offer,
+    String? validityOffer,
+    String? benefits,
   }) async {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
@@ -225,6 +226,30 @@ class PdfGenerator {
             totalToPay += (delivery ?? 0);
           }
 
+          // Preparar las cuotas en columnas (máximo 24 cuotas por columna)
+          List<List<List<String>>> scheduleColumns = [];
+          const int maxRowsPerColumn = 24;
+          int numberOfColumns =
+              (generatedSchedule.length / maxRowsPerColumn).ceil();
+          for (int col = 0; col < numberOfColumns; col++) {
+            List<List<String>> columnData = [];
+            int startIndex = col * maxRowsPerColumn;
+            // Calcular cuántas filas tendrá esta columna
+            int rowsInThisColumn = min(
+              maxRowsPerColumn,
+              generatedSchedule.length - startIndex,
+            );
+            for (int row = 0; row < rowsInThisColumn; row++) {
+              int index = startIndex + row;
+              var installment = generatedSchedule[index];
+              columnData.add([
+                installment['cuota'].toString(),
+                '$currency ${installment['pago_total'].toStringAsFixed(2)}.-',
+              ]);
+            }
+            scheduleColumns.add(columnData);
+          }
+
           return [
             pw.Text('Señor', style: pw.TextStyle(fontSize: 14)),
             pw.Text(client.razonSocial,
@@ -290,53 +315,57 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 16),
             ],
-            pw.Text('DETALLES DE LOS PAGOS',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            pw.Text('Forma de Pago: $paymentMethod'),
-            if (paymentMethod == 'Financiado') ...[
-              if (financingType != null)
-                pw.Text('Tipo de Financiamiento: $financingType'),
-              if (delivery != null)
-                pw.Text('Entrega: $currency ${delivery.toStringAsFixed(2)}.-'),
-              if (paymentFrequency != null)
-                pw.Text('Frecuencia de Pago: $paymentFrequency'),
-              if (numberOfInstallments != null)
-                pw.Text('Cantidad de Cuotas: $numberOfInstallments'),
-              if (hasReinforcements == true) ...[
-                pw.Text('Refuerzos: Sí'),
-                if (reinforcementFrequency != null)
-                  pw.Text('Frecuencia de Refuerzos: $reinforcementFrequency'),
-                if (numberOfReinforcements != null)
-                  pw.Text('Cantidad de Refuerzos: $numberOfReinforcements'),
-                if (reinforcementAmount != null)
-                  pw.Text(
-                      'Monto de Refuerzos: $currency ${reinforcementAmount.toStringAsFixed(2)}.-'),
-              ] else ...[
-                pw.Text('Refuerzos: No'),
-              ],
-              if (monthlyPayment != null)
-                pw.Text(
-                    'Monto de Cuota: $currency ${monthlyPayment.toStringAsFixed(2)}'),
-              if (hasReinforcements == true && reinforcementAmount != null)
-                pw.Text(
-                    'Monto de Refuerzo: $currency ${reinforcementAmount.toStringAsFixed(2)}.-'),
-              if (hasReinforcements == true && numberOfReinforcements != null)
-                pw.Text('Cantidad de Refuerzos: $numberOfReinforcements'),
-              pw.Text(
-                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
-            ] else ...[
-              pw.Text(
-                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
-            ],
-            if (offer != null && offer.isNotEmpty) ...[
-              pw.SizedBox(height: 16),
-              pw.Text('OFRECEMOS',
+            if (paymentMethod == 'Financiado' &&
+                generatedSchedule.isNotEmpty) ...[
+              pw.Text('CRONOGRAMA DE CUOTAS',
                   style: pw.TextStyle(
                       fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 8),
-              pw.Text(offer, style: pw.TextStyle(fontSize: 14)),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.start,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: scheduleColumns.map((columnData) {
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.only(right: 10),
+                    child: pw.Table.fromTextArray(
+                      headers: ['Cuota', 'Monto'],
+                      data: columnData,
+                      headerStyle: pw.TextStyle(
+                          fontSize: 10, fontWeight: pw.FontWeight.bold),
+                      cellStyle: pw.TextStyle(fontSize: 9),
+                      cellAlignment: pw.Alignment.center,
+                      cellPadding: const pw.EdgeInsets.all(3),
+                      columnWidths: {
+                        0: pw.FixedColumnWidth(60),
+                        1: pw.FixedColumnWidth(70),
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+              pw.SizedBox(height: 16),
+            ],
+            if (paymentMethod != 'Financiado') ...[
+              pw.Text(
+                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
+              pw.SizedBox(height: 16),
+            ],
+            // Nuevos campos: Validez de la Oferta y Beneficios
+            if (validityOffer != null && validityOffer.isNotEmpty) ...[
+              pw.Text('VALIDEZ DE LA OFERTA',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Text(validityOffer, style: pw.TextStyle(fontSize: 14)),
+              pw.SizedBox(height: 16),
+            ],
+            if (benefits != null && benefits.isNotEmpty) ...[
+              pw.Text('BENEFICIOS',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Text(benefits, style: pw.TextStyle(fontSize: 14)),
+              pw.SizedBox(height: 16),
             ],
           ];
         },
@@ -362,7 +391,8 @@ class PdfGenerator {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     List<Map<String, dynamic>>? amortizationSchedule,
-    String? offer,
+    String? validityOffer,
+    String? benefits,
   }) async {
     final pdfBytes = await generateBudgetPdf(
       context: context,
@@ -380,7 +410,8 @@ class PdfGenerator {
       numberOfReinforcements: numberOfReinforcements,
       reinforcementAmount: reinforcementAmount,
       amortizationSchedule: amortizationSchedule,
-      offer: offer,
+      validityOffer: validityOffer,
+      benefits: benefits,
     );
     await Printing.sharePdf(
       bytes: pdfBytes,

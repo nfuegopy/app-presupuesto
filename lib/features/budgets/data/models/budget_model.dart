@@ -2,21 +2,22 @@ import '../../../products/data/models/product_model.dart';
 
 class BudgetModel {
   final String id;
-  final String
-      clientId; // Cambiado de ClientModel a String (referencia al cliente)
+  final String clientId;
   final ProductModel product;
   final String currency;
   final double price;
-  final String paymentMethod; // "Contado" o "Financiado"
-  final String? financingType; // "Propia" o "Bancaria"
-  final double? delivery; // Entrega inicial
-  final String? paymentFrequency; // "Mensual", "Trimestral", "Semestral"
+  final String paymentMethod;
+  final String? financingType;
+  final double? delivery;
+  final String? paymentFrequency;
   final int? numberOfInstallments;
   final bool? hasReinforcements;
-  final String? reinforcementFrequency; // "Trimestral", "Semestral", "Anual"
+  final String? reinforcementFrequency;
   final int? numberOfReinforcements;
   final double? reinforcementAmount;
-  final String createdBy; // UID del vendedor
+  final String? validityOffer;
+  final String? benefits;
+  final String createdBy;
   final String createdAt;
 
   BudgetModel({
@@ -34,13 +35,15 @@ class BudgetModel {
     this.reinforcementFrequency,
     this.numberOfReinforcements,
     this.reinforcementAmount,
+    this.validityOffer,
+    this.benefits,
     required this.createdBy,
     required this.createdAt,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'clientId': clientId, // Almacenar solo el ID del cliente
+      'clientId': clientId,
       'product': product.toMap(),
       'currency': currency,
       'price': price,
@@ -53,6 +56,8 @@ class BudgetModel {
       'reinforcementFrequency': reinforcementFrequency,
       'numberOfReinforcements': numberOfReinforcements,
       'reinforcementAmount': reinforcementAmount,
+      'validityOffer': validityOffer,
+      'benefits': benefits,
       'createdBy': createdBy,
       'createdAt': createdAt,
     };
@@ -74,6 +79,8 @@ class BudgetModel {
       reinforcementFrequency: data['reinforcementFrequency'],
       numberOfReinforcements: data['numberOfReinforcements'],
       reinforcementAmount: data['reinforcementAmount']?.toDouble(),
+      validityOffer: data['validityOffer'],
+      benefits: data['benefits'],
       createdBy: data['createdBy'],
       createdAt: data['createdAt'],
     );

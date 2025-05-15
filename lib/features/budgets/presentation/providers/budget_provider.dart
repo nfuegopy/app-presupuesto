@@ -27,7 +27,8 @@ class BudgetProvider with ChangeNotifier {
   String? _reinforcementFrequency;
   int? _numberOfReinforcements;
   double? _reinforcementAmount;
-  String? _offer; // Campo para "Ofrecemos"
+  String? _validityOffer;
+  String? _benefits;
   List<Map<String, dynamic>>? _amortizationSchedule;
 
   Client? get client => _client;
@@ -45,7 +46,8 @@ class BudgetProvider with ChangeNotifier {
   String? get reinforcementFrequency => _reinforcementFrequency;
   int? get numberOfReinforcements => _numberOfReinforcements;
   double? get reinforcementAmount => _reinforcementAmount;
-  String? get offer => _offer;
+  String? get validityOffer => _validityOffer;
+  String? get benefits => _benefits;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
 
   final CreateBudget _createBudget;
@@ -102,7 +104,8 @@ class BudgetProvider with ChangeNotifier {
     String? reinforcementFrequency,
     int? numberOfReinforcements,
     double? reinforcementAmount,
-    String? offer,
+    String? validityOffer,
+    String? benefits,
   }) {
     if (price <= 0) {
       _error = 'El precio debe ser mayor a 0.';
@@ -143,7 +146,8 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementFrequency = reinforcementFrequency;
     _numberOfReinforcements = numberOfReinforcements;
     _reinforcementAmount = reinforcementAmount;
-    _offer = offer;
+    _validityOffer = validityOffer;
+    _benefits = benefits;
     _error = null;
 
     if (paymentMethod == 'Financiado' &&
@@ -252,7 +256,8 @@ class BudgetProvider with ChangeNotifier {
         reinforcementFrequency: _reinforcementFrequency,
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
-        offer: _offer,
+        validityOffer: _validityOffer,
+        benefits: _benefits,
         createdBy: user.uid,
         createdAt: DateTime.now().toIso8601String(),
       );
@@ -261,6 +266,8 @@ class BudgetProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = 'Error al guardar el presupuesto: $e';
+      notifyListeners();
+      return;
     }
     notifyListeners();
   }
@@ -282,7 +289,7 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  Future<void> saveAndSharePdf(BuildContext context, {String? offer}) async {
+  Future<void> saveAndSharePdf(BuildContext context) async {
     try {
       final client = await getClient(_clientId!);
       if (client == null) {
@@ -307,8 +314,6 @@ class BudgetProvider with ChangeNotifier {
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
         amortizationSchedule: _amortizationSchedule,
-        offer:
-            _offer, // Usar _offer directamente, ya que está almacenado en el provider
       );
       _error = null;
     } catch (e) {
@@ -332,7 +337,8 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementFrequency = null;
     _numberOfReinforcements = null;
     _reinforcementAmount = null;
-    _offer = null;
+    _validityOffer = null;
+    _benefits = null;
     _amortizationSchedule = null;
     _error = null;
     notifyListeners();
