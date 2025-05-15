@@ -5,6 +5,7 @@ import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
 import '../../../auth/presentation/widgets/custom_dropdown.dart';
 import '../../../products/domain/entities/product.dart';
+import '../widgets/custom_tags_input_field.dart'; // Importar el nuevo widget
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -25,7 +26,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _numberOfInstallmentsController = TextEditingController();
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
-  final _offerController = TextEditingController();
+  final _validityOfferController =
+      TextEditingController(text: 'Valido 15 dias');
+  final _benefitsController = TextEditingController();
   String? _ciudad;
   String? _departamento;
   String? _currency;
@@ -50,6 +53,19 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     'San Lorenzo',
   ];
 
+  final List<String> benefitOptions = [
+    'Transferencia',
+    'Flete',
+    'Primer Mantenimiento',
+    '500 Horas de Mantenimiento',
+    '1000 Horas de Mantenimiento',
+    'Protecciones Completas de cabina',
+    'Rastrillo',
+    'Tumbador',
+    'Garra Forestal',
+    'Tercera Via Hidraulica',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -70,7 +86,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _numberOfInstallmentsController.dispose();
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
-    _offerController.dispose();
+    _validityOfferController.dispose();
+    _benefitsController.dispose();
     super.dispose();
   }
 
@@ -254,7 +271,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 controller: _deliveryController,
                 label: 'Entrega',
                 keyboardType: TextInputType.number,
-                isRequired: false, // Campo no obligatorio
+                isRequired: false,
               ),
               const SizedBox(height: 16),
               CustomDropdown(
@@ -315,10 +332,16 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             ],
             const SizedBox(height: 16),
             CustomTextField(
-              controller: _offerController,
-              label: 'Ofrecemos',
-              keyboardType: TextInputType.multiline,
-              maxLines: 3,
+              controller: _validityOfferController,
+              label: 'Validez de la Oferta',
+              isRequired: false,
+            ),
+            const SizedBox(height: 16),
+            CustomTagsInputField(
+              controller: _benefitsController,
+              label: 'Beneficios',
+              options: benefitOptions,
+              isRequired: false,
             ),
             const SizedBox(height: 32),
             if (budgetProvider.error != null)
@@ -363,7 +386,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   financingType: _financingType,
                   delivery: _deliveryController.text.isNotEmpty
                       ? double.parse(_deliveryController.text)
-                      : 0, // Interpretar como 0 si está vacío
+                      : 0,
                   paymentFrequency: _paymentFrequency,
                   numberOfInstallments:
                       _numberOfInstallmentsController.text.isNotEmpty
@@ -379,7 +402,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _reinforcementAmountController.text.isNotEmpty
                           ? double.parse(_reinforcementAmountController.text)
                           : null,
-                  offer: _offerController.text.trim(),
+                  validityOffer: _validityOfferController.text.trim(),
+                  benefits: _benefitsController.text.trim(),
                 );
 
                 if (budgetProvider.error != null) {
@@ -402,7 +426,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   const SnackBar(
                       content: Text('Presupuesto generado y guardado')),
                 );
-                // No limpiar los campos ni salir de la pantalla
               },
             ),
           ],

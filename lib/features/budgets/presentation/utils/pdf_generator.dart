@@ -26,7 +26,8 @@ class PdfGenerator {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     List<Map<String, dynamic>>? amortizationSchedule,
-    String? offer,
+    String? validityOffer,
+    String? benefits,
   }) async {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
@@ -347,14 +348,24 @@ class PdfGenerator {
             if (paymentMethod != 'Financiado') ...[
               pw.Text(
                   'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
-            ],
-            if (offer != null && offer.isNotEmpty) ...[
               pw.SizedBox(height: 16),
-              pw.Text('OFRECEMOS',
+            ],
+            // Nuevos campos: Validez de la Oferta y Beneficios
+            if (validityOffer != null && validityOffer.isNotEmpty) ...[
+              pw.Text('VALIDEZ DE LA OFERTA',
                   style: pw.TextStyle(
                       fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 8),
-              pw.Text(offer, style: pw.TextStyle(fontSize: 14)),
+              pw.Text(validityOffer, style: pw.TextStyle(fontSize: 14)),
+              pw.SizedBox(height: 16),
+            ],
+            if (benefits != null && benefits.isNotEmpty) ...[
+              pw.Text('BENEFICIOS',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Text(benefits, style: pw.TextStyle(fontSize: 14)),
+              pw.SizedBox(height: 16),
             ],
           ];
         },
@@ -380,7 +391,8 @@ class PdfGenerator {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     List<Map<String, dynamic>>? amortizationSchedule,
-    String? offer,
+    String? validityOffer,
+    String? benefits,
   }) async {
     final pdfBytes = await generateBudgetPdf(
       context: context,
@@ -398,7 +410,8 @@ class PdfGenerator {
       numberOfReinforcements: numberOfReinforcements,
       reinforcementAmount: reinforcementAmount,
       amortizationSchedule: amortizationSchedule,
-      offer: offer,
+      validityOffer: validityOffer,
+      benefits: benefits,
     );
     await Printing.sharePdf(
       bytes: pdfBytes,

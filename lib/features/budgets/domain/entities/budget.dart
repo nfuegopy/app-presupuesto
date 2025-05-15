@@ -1,4 +1,3 @@
-//import '../../domain/entities/client.dart';
 import '../../../products/domain/entities/product.dart';
 
 class Budget {
@@ -16,7 +15,8 @@ class Budget {
   final String? reinforcementFrequency;
   final int? numberOfReinforcements;
   final double? reinforcementAmount;
-  final String? offer;
+  final String? validityOffer;
+  final String? benefits;
   final String createdBy;
   final String createdAt;
 
@@ -35,7 +35,8 @@ class Budget {
     this.reinforcementFrequency,
     this.numberOfReinforcements,
     this.reinforcementAmount,
-     this.offer,
+    this.validityOffer,
+    this.benefits,
     required this.createdBy,
     required this.createdAt,
   });
