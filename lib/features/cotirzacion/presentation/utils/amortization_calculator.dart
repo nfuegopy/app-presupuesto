@@ -12,7 +12,6 @@ class AmortizationCalculator {
     double remainingCapital = capital;
 
     for (int i = 1; i <= numberOfInstallments; i++) {
-      
       double interest = remainingCapital * monthlyRate;
       // Ajustar el capital amortizado para que la cuota sea fija
       double principal = fixedMonthlyPayment - interest;

@@ -16,6 +16,7 @@ import 'features/budgets/domain/usecases/create_budget.dart';
 import 'features/budgets/data/repositories/budget_repository_impl.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart'; // Añadir esta importación
+import 'features/cotirzacion/data/repositories/cotizacion_repository_impl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
