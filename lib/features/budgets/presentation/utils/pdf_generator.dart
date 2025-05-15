@@ -142,54 +142,39 @@ class PdfGenerator {
 
       String planName = '';
       if (paymentFrequency == 'Mensual') {
-        if (hasReinforcements == true && delivery != null && delivery > 0) {
-          planName = 'Plan mensual con entrega';
-        } else if (hasReinforcements != true &&
-            (delivery == null || delivery == 0)) {
-          planName = 'Plan mensual sin entrega';
-        }
+        planName = delivery != null && delivery > 0
+            ? 'Plan mensual con entrega'
+            : 'Plan mensual sin entrega';
       } else if (paymentFrequency == 'Semestral') {
-        if (hasReinforcements != true && (delivery == null || delivery == 0)) {
-          planName = 'Plan semestral sin entrega';
-        } else if (hasReinforcements != true &&
-            delivery != null &&
-            delivery > 0) {
-          planName = 'Plan semestral con entrega';
-        }
+        planName = delivery != null && delivery > 0
+            ? 'Plan semestral con entrega'
+            : 'Plan semestral sin entrega';
       } else if (paymentFrequency == 'Trimestral') {
-        if (hasReinforcements == true && delivery != null && delivery > 0) {
-          planName = 'Plan trimestral con entrega';
-        } else if (hasReinforcements != true &&
-            (delivery == null || delivery == 0)) {
-          planName = 'Plan trimestral sin entrega';
-        }
+        planName = delivery != null && delivery > 0
+            ? 'Plan trimestral con entrega'
+            : 'Plan trimestral sin entrega';
       } else if (paymentFrequency == 'Anual') {
-        if (hasReinforcements == true && delivery != null && delivery > 0) {
-          planName = 'Plan anual con entrega';
-        } else if (hasReinforcements != true &&
-            (delivery == null || delivery == 0)) {
-          planName = 'Plan anual sin entrega';
-        }
+        planName = delivery != null && delivery > 0
+            ? 'Plan anual con entrega'
+            : 'Plan anual sin entrega';
       }
 
-      if (planName.isNotEmpty) {
-        financingPlans = [
-          [
-            planName,
-            delivery != null && delivery > 0
-                ? '$currency ${delivery.toStringAsFixed(2)}.-'
-                : '-',
-            '$currency ${generatedMonthlyPayment.toStringAsFixed(2)}',
-            '$numberOfInstallments',
-            hasReinforcements == true && numberOfReinforcements != null
-                ? '$numberOfReinforcements'
-                : '-',
-            hasReinforcements == true && reinforcementAmount != null
-                ? '$currency ${reinforcementAmount.toStringAsFixed(2)}.-'
-                : '-',
-          ],
-        ];
-      }
+      financingPlans = [
+        [
+          planName,
+          delivery != null && delivery > 0
+              ? '$currency ${delivery.toStringAsFixed(2)}.-'
+              : '-',
+          '$currency ${generatedMonthlyPayment.toStringAsFixed(2)}',
+          '$numberOfInstallments',
+          hasReinforcements == true && numberOfReinforcements != null
+              ? '$numberOfReinforcements'
+              : '-',
+          hasReinforcements == true && reinforcementAmount != null
+              ? '$currency ${reinforcementAmount.toStringAsFixed(2)}.-'
+              : '-',
+        ],
+      ];
     }
 
     pdf.addPage(
@@ -295,12 +280,12 @@ class PdfGenerator {
                 cellAlignment: pw.Alignment.center,
                 cellPadding: const pw.EdgeInsets.all(3),
                 columnWidths: {
-                  0: pw.FixedColumnWidth(90), // Forma de pago
-                  1: pw.FixedColumnWidth(70), // Entrega
-                  2: pw.FixedColumnWidth(70), // Monto de cuota
-                  3: pw.FixedColumnWidth(60), // Cantidad de cuotas
-                  4: pw.FixedColumnWidth(60), // Cantidad de refuerzos
-                  5: pw.FixedColumnWidth(70), // Monto de refuerzos
+                  0: pw.FixedColumnWidth(90),
+                  1: pw.FixedColumnWidth(70),
+                  2: pw.FixedColumnWidth(70),
+                  3: pw.FixedColumnWidth(60),
+                  4: pw.FixedColumnWidth(60),
+                  5: pw.FixedColumnWidth(70),
                 },
               ),
               pw.SizedBox(height: 16),

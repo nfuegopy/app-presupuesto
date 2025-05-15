@@ -25,8 +25,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _numberOfInstallmentsController = TextEditingController();
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
-  final _offerController =
-      TextEditingController(); // Nuevo controlador para "Ofrecemos"
+  final _offerController = TextEditingController();
   String? _ciudad;
   String? _departamento;
   String? _currency;
@@ -36,7 +35,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   bool? _hasReinforcements;
   String? _reinforcementFrequency;
 
-  // Listas de ejemplo para departamentos y ciudades
   final List<String> departamentos = [
     'Central',
     'Alto Paraná',
@@ -72,7 +70,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _numberOfInstallmentsController.dispose();
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
-    _offerController.dispose(); // Dispose del nuevo controlador
+    _offerController.dispose();
     super.dispose();
   }
 
@@ -84,15 +82,26 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Formulario de Presupuesto')),
+      appBar: AppBar(
+        title: const Text('Formulario de Presupuesto'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Botón para volver
+            },
+            child: const Text(
+              'Volver',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           16.0,
           16.0,
           16.0,
-          16.0 +
-              bottomPadding +
-              16.0, // Añadir padding adicional para la barra de navegación
+          16.0 + bottomPadding + 16.0,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +254,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 controller: _deliveryController,
                 label: 'Entrega',
                 keyboardType: TextInputType.number,
-                isRequired: _financingType == 'Propia',
+                isRequired: false, // Campo no obligatorio
               ),
               const SizedBox(height: 16),
               CustomDropdown(
@@ -354,7 +363,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   financingType: _financingType,
                   delivery: _deliveryController.text.isNotEmpty
                       ? double.parse(_deliveryController.text)
-                      : null,
+                      : 0, // Interpretar como 0 si está vacío
                   paymentFrequency: _paymentFrequency,
                   numberOfInstallments:
                       _numberOfInstallmentsController.text.isNotEmpty
@@ -370,8 +379,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _reinforcementAmountController.text.isNotEmpty
                           ? double.parse(_reinforcementAmountController.text)
                           : null,
-                  offer: _offerController.text
-                      .trim(), // Pasar el campo "Ofrecemos"
+                  offer: _offerController.text.trim(),
                 );
 
                 if (budgetProvider.error != null) {
@@ -389,14 +397,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   return;
                 }
 
-                // Pasar el context a saveAndSharePdf
                 await budgetProvider.saveAndSharePdf(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Presupuesto generado y guardado')),
                 );
-                budgetProvider.clear();
-                Navigator.pop(context);
+                // No limpiar los campos ni salir de la pantalla
               },
             ),
           ],
