@@ -314,6 +314,8 @@ class BudgetProvider with ChangeNotifier {
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
         amortizationSchedule: _amortizationSchedule,
+        validityOffer: _validityOffer, // Pasar el campo
+        benefits: _benefits, // Pasar el campo
       );
       _error = null;
     } catch (e) {

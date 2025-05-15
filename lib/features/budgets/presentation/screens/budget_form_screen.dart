@@ -5,7 +5,7 @@ import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
 import '../../../auth/presentation/widgets/custom_dropdown.dart';
 import '../../../products/domain/entities/product.dart';
-import '../widgets/custom_tags_input_field.dart'; // Importar el nuevo widget
+import '../widgets/custom_tags_input_field.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -29,6 +29,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _validityOfferController =
       TextEditingController(text: 'Valido 15 dias');
   final _benefitsController = TextEditingController();
+
   String? _ciudad;
   String? _departamento;
   String? _currency;
@@ -89,6 +90,30 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _validityOfferController.dispose();
     _benefitsController.dispose();
     super.dispose();
+  }
+
+  // Método para mostrar el diálogo de confirmación
+  Future<bool> _showConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirmación'),
+            content: const Text(
+              '¿Confirmas que realizaste el cálculo del presupuesto incluyendo los costos de beneficios y otros conceptos?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false), // No
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true), // Sí
+                child: const Text('Sí'),
+              ),
+            ],
+          ),
+        ) ??
+        false; // Devuelve false si el usuario cierra el diálogo sin seleccionar
   }
 
   @override
@@ -362,6 +387,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
+                // Mostrar diálogo de confirmación
+                bool confirmed = await _showConfirmationDialog();
+                if (!confirmed) {
+                  return; // Si el usuario selecciona "No", detener el flujo
+                }
+
                 budgetProvider.updateClient(
                   razonSocial: _razonSocialController.text.trim(),
                   ruc: _rucController.text.trim(),
