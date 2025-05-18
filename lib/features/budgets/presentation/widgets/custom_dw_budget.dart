@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 
-class CustomDropdown extends StatelessWidget {
+class CustomDwBudget<T> extends StatelessWidget {
   final String label;
-  final String? value;
-  final List<String> items;
-  final ValueChanged<String?> onChanged;
+  final T? value;
+  final List<Map<String, dynamic>> items;
+  final String Function(Map<String, dynamic>) itemToString;
+  final ValueChanged<Map<String, dynamic>?>? onChanged; // Cambiado a nullable
 
-  const CustomDropdown({
+  const CustomDwBudget({
     super.key,
     required this.label,
     required this.value,
     required this.items,
-    required this.onChanged,
+    required this.itemToString,
+    this.onChanged,
   });
 
   @override
@@ -27,14 +29,16 @@ class CustomDropdown extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
+        child: DropdownButton<Map<String, dynamic>>(
+          value: items.firstWhere(
+            (item) => item['value'] == value,
+            orElse: () => {}, // Mapa vacío si no hay coincidencia
+          ),
           hint: Text(
             label,
             style: TextStyle(color: Colors.white.withOpacity(0.7)),
           ),
-          isExpanded:
-              true, // Asegura que el dropdown ocupe todo el ancho disponible
+          isExpanded: true,
           icon: Icon(
             Icons.arrow_drop_down,
             color: Theme.of(context).colorScheme.primary,
@@ -42,17 +46,16 @@ class CustomDropdown extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium,
           dropdownColor: Theme.of(context).colorScheme.surface.withOpacity(0.9),
           items: items.map((item) {
-            return DropdownMenuItem<String>(
+            return DropdownMenuItem<Map<String, dynamic>>(
               value: item,
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width -
-                      64, // Limita el ancho del menú
+                  maxWidth: MediaQuery.of(context).size.width - 64,
                 ),
                 child: Text(
-                  item,
+                  itemToString(item),
                   style: Theme.of(context).textTheme.bodyMedium,
-                  overflow: TextOverflow.ellipsis, // Evita desbordamiento
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             );

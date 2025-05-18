@@ -14,46 +14,46 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: isLoading
-          ? null
-          : (_) {
-              // Feedback visual al presionar
-            },
-      onTapUp: isLoading
-          ? null
-          : (_) {
-              onPressed();
-            },
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 100),
-        scale: isLoading ? 1.0 : 1.0, // Escala no cambia mientras está cargando
-        child: ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                Theme.of(context).colorScheme.primary, // Fondo neón
-            foregroundColor: Theme.of(context).colorScheme.onPrimary, // Texto
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 8,
-            shadowColor: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+    return ElevatedButton(
+      onPressed:
+          isLoading ? null : onPressed, // Deshabilitar cuando está cargando
+      style: ElevatedButton.styleFrom(
+        minimumSize:
+            const Size(double.infinity, 50), // Ancho completo, altura 50
+        padding: const EdgeInsets.symmetric(
+            horizontal: 24, vertical: 12), // Más padding
+        backgroundColor: Theme.of(context)
+            .colorScheme
+            .primary
+            .withOpacity(0.8), // Fondo translúcido
+        foregroundColor: Colors.white, // Color del texto/iconos
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12), // Bordes redondeados
+          side: BorderSide(
+            color: Theme.of(context)
+                .colorScheme
+                .primary
+                .withOpacity(0.5), // Borde neón
+            width: 1,
           ),
-          child: isLoading
-              ? const CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                )
-              : Text(
-                  text,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
+        ),
+        elevation: 4, // Sombra sutil
+        shadowColor: Colors.black.withOpacity(0.2), // Color de la sombra
+        textStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold, // Texto más destacado
         ),
       ),
+      child: isLoading
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : Text(text),
     );
   }
 }
