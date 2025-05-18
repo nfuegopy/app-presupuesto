@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
-import '../../../auth/presentation/widgets/custom_dropdown.dart';
+import '../../../auth/presentation/widgets/custom_dropdown.dart'; // Dropdown para listas de strings
+import '../widgets/custom_dw_budget.dart'; // Nuevo dropdown para Refuerzos
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 
@@ -74,6 +75,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     budgetProvider.updateProduct(widget.product);
     _priceController.text = widget.product.price.toString();
     _currency = widget.product.currency;
+    _hasReinforcements = false; // Valor por defecto para evitar null
   }
 
   @override
@@ -317,13 +319,19 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 isRequired: true,
               ),
               const SizedBox(height: 16),
-              CustomDropdown(
+              CustomDwBudget<bool>(
                 label: 'Refuerzos',
-                value: _hasReinforcements?.toString(),
-                items: const ['false', 'true'],
-                onChanged: (value) {
+                value: _hasReinforcements,
+                items: const [
+                  {'value': false, 'label': 'No'},
+                  {'value': true, 'label': 'Sí'},
+                ],
+                itemToString: (item) => item['label'] as String,
+                onChanged: (item) {
                   setState(() {
-                    _hasReinforcements = value == 'true';
+                    _hasReinforcements = item != null
+                        ? item['value'] as bool
+                        : false; // Manejo de null
                   });
                 },
               ),
@@ -387,6 +395,16 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
+                // Validar que se haya seleccionado una opción para Refuerzos
+                if (_hasReinforcements == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Por favor, seleccione si incluye refuerzos')),
+                  );
+                  return;
+                }
+
                 // Mostrar diálogo de confirmación
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) {
