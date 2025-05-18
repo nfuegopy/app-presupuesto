@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Para BackdropFilter
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:animate_do/animate_do.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/email_text_field.dart'; // Nuevo import
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (authProvider.storedEmail != null) {
       _emailController.text = authProvider.storedEmail!;
     }
+    _registerEmailController.text = '@enginepy.com'; // Inicializar con dominio
   }
 
   @override
@@ -57,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background, // Fondo gris oscuro
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -67,13 +69,16 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Efecto glassmorphism
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1), // Fondo translúcido
+                      color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3), // Borde neón
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.3),
                         width: 1,
                       ),
                       boxShadow: [
@@ -89,17 +94,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Logo con borde neón y sombra
+                          // Logo
                           Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Theme.of(context).colorScheme.primary, // Borde neón
+                                color: Theme.of(context).colorScheme.primary,
                                 width: 2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.5),
                                   blurRadius: 10,
                                   spreadRadius: 2,
                                 ),
@@ -115,21 +123,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // Título con degradado neón (comentado)
-                          // ShaderMask(
-                          //   shaderCallback: (bounds) => const LinearGradient(
-                          //     colors: [
-                          //       Color(0xFF00E5FF), // Azul neón
-                          //       Color(0xFF00B8D4),
-                          //     ],
-                          //     begin: Alignment.topLeft,
-                          //     end: Alignment.bottomRight,
-                          //   ).createShader(bounds),
-                          //   child: Text(
-                          //     'App Presupuesto',
-                          //     style: Theme.of(context).textTheme.headlineMedium,
-                          //   ),
-                          // ),
                           const SizedBox(height: 32),
                           if (!_isRegistering) ...[
                             CustomTextField(
@@ -154,13 +147,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.error.withOpacity(0.2),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .error
+                                        .withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     authProvider.errorMessage!,
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.error,
+                                      color:
+                                          Theme.of(context).colorScheme.error,
                                       fontSize: 14,
                                     ),
                                     textAlign: TextAlign.center,
@@ -171,10 +168,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             CustomButton(
                               text: 'Iniciar Sesión',
                               onPressed: () {
-                                authProvider.signIn(
-                                  _emailController.text.trim(),
-                                  _passwordController.text.trim(),
-                                );
+                                final email = _emailController.text.trim();
+                                final password =
+                                    _passwordController.text.trim();
+                                if (email.isEmpty || password.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Por favor, complete todos los campos')),
+                                  );
+                                  return;
+                                }
+                                authProvider.signIn(email, password);
                               },
                               isLoading: authProvider.isLoading,
                             ),
@@ -183,6 +188,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 setState(() {
                                   _isRegistering = true;
+                                  _nombreController.clear();
+                                  _apellidoController.clear();
+                                  _registerEmailController.text =
+                                      '@enginepy.com';
+                                  _registerPasswordController.clear();
                                 });
                               },
                               child: Text(
@@ -205,10 +215,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: Icons.person,
                             ),
                             const SizedBox(height: 16),
-                            CustomTextField(
+                            EmailTextField(
                               controller: _registerEmailController,
                               label: 'Correo Electrónico',
-                              keyboardType: TextInputType.emailAddress,
                               isRequired: true,
                               prefixIcon: Icons.email,
                             ),
@@ -227,13 +236,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.error.withOpacity(0.2),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .error
+                                        .withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     authProvider.errorMessage!,
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.error,
+                                      color:
+                                          Theme.of(context).colorScheme.error,
                                       fontSize: 14,
                                     ),
                                     textAlign: TextAlign.center,
@@ -244,11 +257,40 @@ class _LoginScreenState extends State<LoginScreen> {
                             CustomButton(
                               text: 'Crear Cuenta',
                               onPressed: () {
+                                final nombre = _nombreController.text.trim();
+                                final apellido =
+                                    _apellidoController.text.trim();
+                                final email =
+                                    _registerEmailController.text.trim();
+                                final password =
+                                    _registerPasswordController.text.trim();
+
+                                // Validar campos
+                                if (nombre.isEmpty ||
+                                    apellido.isEmpty ||
+                                    email == '@enginepy.com' ||
+                                    password.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Por favor, complete todos los campos')),
+                                  );
+                                  return;
+                                }
+                                if (password.length < 6) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'La contraseña debe tener al menos 6 caracteres')),
+                                  );
+                                  return;
+                                }
+
                                 authProvider.createUser(
-                                  email: _registerEmailController.text.trim(),
-                                  password: _registerPasswordController.text.trim(),
-                                  nombre: _nombreController.text.trim(),
-                                  apellido: _apellidoController.text.trim(),
+                                  email: email,
+                                  password: password,
+                                  nombre: nombre,
+                                  apellido: apellido,
                                 );
                               },
                               isLoading: authProvider.isLoading,
@@ -258,6 +300,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 setState(() {
                                   _isRegistering = false;
+                                  _nombreController.clear();
+                                  _apellidoController.clear();
+                                  _registerEmailController.text =
+                                      '@enginepy.com';
+                                  _registerPasswordController.clear();
                                 });
                               },
                               child: Text(
