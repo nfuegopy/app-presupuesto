@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
-import '../../../auth/presentation/widgets/custom_dropdown.dart'; // Dropdown para listas de strings
-import '../widgets/custom_dw_budget.dart'; // Nuevo dropdown para Refuerzos
+import '../../../auth/presentation/widgets/custom_dropdown.dart';
+import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 
@@ -75,7 +75,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     budgetProvider.updateProduct(widget.product);
     _priceController.text = widget.product.price.toString();
     _currency = widget.product.currency;
-    _hasReinforcements = false; // Valor por defecto para evitar null
+    _hasReinforcements = false;
   }
 
   @override
@@ -94,7 +94,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     super.dispose();
   }
 
-  // Método para mostrar el diálogo de confirmación
   Future<bool> _showConfirmationDialog() async {
     return await showDialog<bool>(
           context: context,
@@ -105,24 +104,22 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(false), // No
+                onPressed: () => Navigator.of(context).pop(false),
                 child: const Text('No'),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(true), // Sí
+                onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('Sí'),
               ),
             ],
           ),
         ) ??
-        false; // Devuelve false si el usuario cierra el diálogo sin seleccionar
+        false;
   }
 
   @override
   Widget build(BuildContext context) {
     final budgetProvider = Provider.of<BudgetProvider>(context);
-
-    // Obtener el padding inferior del sistema (para la barra de navegación)
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
 
     return Scaffold(
@@ -131,7 +128,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Botón para volver
+              Navigator.pop(context);
             },
             child: const Text(
               'Volver',
@@ -150,6 +147,47 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Datos de la Máquina',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Máquina Seleccionada: ${widget.product.name}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tipo: ${widget.product.type}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      'Precio: ${widget.product.price} ${widget.product.currency}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (widget.product.imageUrl != null)
+                      Image.network(
+                        widget.product.imageUrl!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
             Text(
               'Datos del Cliente',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -202,47 +240,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   _ciudad = value;
                 });
               },
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Datos de la Máquina',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Máquina Seleccionada: ${widget.product.name}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tipo: ${widget.product.type}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    Text(
-                      'Precio: ${widget.product.price} ${widget.product.currency}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    if (widget.product.imageUrl != null)
-                      Image.network(
-                        widget.product.imageUrl!,
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      ),
-                  ],
-                ),
-              ),
             ),
             const SizedBox(height: 32),
             Text(
@@ -329,9 +326,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 itemToString: (item) => item['label'] as String,
                 onChanged: (item) {
                   setState(() {
-                    _hasReinforcements = item != null
-                        ? item['value'] as bool
-                        : false; // Manejo de null
+                    _hasReinforcements =
+                        item != null ? item['value'] as bool : false;
                   });
                 },
               ),
@@ -395,8 +391,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
-                // Validar que se haya seleccionado una opción para Refuerzos
                 if (_hasReinforcements == null) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content:
@@ -405,10 +401,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   return;
                 }
 
-                // Mostrar diálogo de confirmación
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) {
-                  return; // Si el usuario selecciona "No", detener el flujo
+                  return;
                 }
 
                 budgetProvider.updateClient(
@@ -421,6 +416,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 );
 
                 if (budgetProvider.error != null) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(budgetProvider.error!)),
                   );
@@ -456,6 +452,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 );
 
                 if (budgetProvider.error != null) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(budgetProvider.error!)),
                   );
@@ -464,6 +461,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
 
                 await budgetProvider.createBudget();
                 if (budgetProvider.error != null) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(budgetProvider.error!)),
                   );
@@ -471,6 +469,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 }
 
                 await budgetProvider.saveAndSharePdf(context);
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Presupuesto generado y guardado')),

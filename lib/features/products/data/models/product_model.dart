@@ -8,6 +8,7 @@ class ProductModel {
   final String currency;
   final String? features;
   final String? imageUrl;
+  final String? imageDescriptionUrl;
   final String createdAt;
   final String? brand;
   final String? model;
@@ -21,6 +22,7 @@ class ProductModel {
     required this.currency,
     this.features,
     this.imageUrl,
+    this.imageDescriptionUrl,
     required this.createdAt,
     this.brand,
     this.model,
@@ -36,6 +38,7 @@ class ProductModel {
       currency: data['currency'] ?? '',
       features: data['features'],
       imageUrl: data['image_url'],
+      imageDescriptionUrl: data['image_description_url'],
       createdAt: data['created_at'] ?? '',
       brand: data['brand'],
       model: data['model'],
@@ -51,6 +54,7 @@ class ProductModel {
       'currency': currency,
       'features': features,
       'image_url': imageUrl,
+      'image_description_url': imageDescriptionUrl,
       'created_at': createdAt,
       'brand': brand,
       'model': model,
@@ -67,6 +71,7 @@ class ProductModel {
       currency: currency,
       features: features,
       imageUrl: imageUrl,
+      imageDescriptionUrl: imageDescriptionUrl,
       createdAt: createdAt,
       brand: brand,
       model: model,
