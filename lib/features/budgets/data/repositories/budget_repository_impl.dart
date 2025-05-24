@@ -22,6 +22,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
         currency: budget.product.currency,
         features: budget.product.features,
         imageUrl: budget.product.imageUrl,
+        imageDescriptionUrl: budget.product.imageDescriptionUrl,
         createdAt: budget.product.createdAt,
         brand: budget.product.brand,
         model: budget.product.model,

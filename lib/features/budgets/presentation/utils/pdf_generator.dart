@@ -43,7 +43,22 @@ class PdfGenerator {
           productImageData = response.bodyBytes;
         }
       } catch (e) {
-        debugPrint('Error downloading image: $e');
+        debugPrint('Error downloading main image: $e');
+      }
+    }
+
+    Uint8List? descriptionImageData;
+    if (product.imageDescriptionUrl != null &&
+        product.imageDescriptionUrl!.isNotEmpty) {
+      try {
+        final response = await http
+            .get(Uri.parse(product.imageDescriptionUrl!))
+            .timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          descriptionImageData = response.bodyBytes;
+        }
+      } catch (e) {
+        debugPrint('Error downloading description image: $e');
       }
     }
 
@@ -226,7 +241,6 @@ class PdfGenerator {
             totalToPay += (delivery ?? 0);
           }
 
-          // Preparar las cuotas en columnas (máximo 24 cuotas por columna)
           List<List<List<String>>> scheduleColumns = [];
           const int maxRowsPerColumn = 24;
           int numberOfColumns =
@@ -234,7 +248,6 @@ class PdfGenerator {
           for (int col = 0; col < numberOfColumns; col++) {
             List<List<String>> columnData = [];
             int startIndex = col * maxRowsPerColumn;
-            // Calcular cuántas filas tendrá esta columna
             int rowsInThisColumn = min(
               maxRowsPerColumn,
               generatedSchedule.length - startIndex,
@@ -271,12 +284,10 @@ class PdfGenerator {
             if (product.model != null) pw.Text('Modelo: ${product.model}'),
             if (product.fuelType != null)
               pw.Text('Tipo de Combustible: ${product.fuelType}'),
-            if (product.features != null && product.features!.isNotEmpty)
-              pw.Text('Descripción: ${product.features}'),
             pw.SizedBox(height: 8),
-            if (productImageData != null) ...[
-              pw.Image(pw.MemoryImage(productImageData),
-                  width: 100, height: 100),
+            if (descriptionImageData != null) ...[
+              pw.Image(pw.MemoryImage(descriptionImageData),
+                  width: 400, height: 300, fit: pw.BoxFit.contain),
               pw.SizedBox(height: 8),
             ],
             pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-'),
@@ -350,7 +361,6 @@ class PdfGenerator {
                   'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
               pw.SizedBox(height: 16),
             ],
-            // Nuevos campos: Validez de la Oferta y Beneficios
             if (validityOffer != null && validityOffer.isNotEmpty) ...[
               pw.Text('VALIDEZ DE LA OFERTA',
                   style: pw.TextStyle(
@@ -365,6 +375,15 @@ class PdfGenerator {
                       fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 8),
               pw.Text(benefits, style: pw.TextStyle(fontSize: 14)),
+              pw.SizedBox(height: 16),
+            ],
+            if (productImageData != null) ...[
+              pw.Text('IMAGEN DEL PRODUCTO',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Image(pw.MemoryImage(productImageData),
+                  width: 400, height: 300, fit: pw.BoxFit.contain),
               pw.SizedBox(height: 16),
             ],
           ];
