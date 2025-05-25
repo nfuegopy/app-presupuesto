@@ -9,6 +9,7 @@ import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 import '../widgets/client_search_select.dart';
 import '../../data/models/client_model.dart';
+import '../utils/reinforcement_validator.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -34,7 +35,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _benefitsController = TextEditingController();
   String _searchQuery = '';
   bool _isNewClient = false;
-  ClientModel? _selectedClient; // Nuevo campo para cliente seleccionado
+  ClientModel? _selectedClient;
 
   String? _ciudad;
   String? _departamento;
@@ -215,7 +216,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   onChanged: (value) {
                     setState(() {
                       _isNewClient = value ?? false;
-                      _selectedClient = null; // Limpiar cliente seleccionado
+                      _selectedClient = null;
                       if (_isNewClient) {
                         _razonSocialController.clear();
                         _rucController.clear();
@@ -388,6 +389,13 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 isRequired: false,
               ),
               const SizedBox(height: 16),
+              CustomTextField(
+                controller: _numberOfInstallmentsController,
+                label: 'Cantidad de Cuotas',
+                keyboardType: TextInputType.number,
+                isRequired: true,
+              ),
+              const SizedBox(height: 16),
               CustomDropdown(
                 label: 'Frecuencia de Cuotas',
                 value: _paymentFrequency,
@@ -398,63 +406,58 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   });
                 },
               ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _numberOfInstallmentsController,
-                label: 'Cantidad de Cuotas',
-                keyboardType: TextInputType.number,
-                isRequired: true,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Datos de Refuerzos',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              CustomDwBudget<bool>(
-                label: 'Refuerzos',
-                value: _hasReinforcements,
-                items: const [
-                  {'value': false, 'label': 'No'},
-                  {'value': true, 'label': 'Sí'},
-                ],
-                itemToString: (item) => item['label'] as String,
-                onChanged: (item) {
-                  setState(() {
-                    _hasReinforcements =
-                        item != null ? item['value'] as bool : false;
-                  });
-                },
-              ),
-              if (_hasReinforcements == true) ...[
+              if (_paymentFrequency != null) ...[
                 const SizedBox(height: 16),
-                CustomDropdown(
-                  label: 'Frecuencia de Refuerzos',
-                  value: _reinforcementFrequency,
-                  items: const ['Trimestral', 'Semestral', 'Anual'],
-                  onChanged: (value) {
+                Text(
+                  'Datos de Refuerzos',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                CustomDwBudget<bool>(
+                  label: 'Refuerzos',
+                  value: _hasReinforcements,
+                  items: const [
+                    {'value': false, 'label': 'No'},
+                    {'value': true, 'label': 'Sí'},
+                  ],
+                  itemToString: (item) => item['label'] as String,
+                  onChanged: (item) {
                     setState(() {
-                      _reinforcementFrequency = value;
+                      _hasReinforcements =
+                          item != null ? item['value'] as bool : false;
                     });
                   },
                 ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _numberOfReinforcementsController,
-                  label: 'Cantidad de Refuerzos',
-                  keyboardType: TextInputType.number,
-                  isRequired: true,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _reinforcementAmountController,
-                  label: 'Monto de Refuerzos',
-                  keyboardType: TextInputType.number,
-                  isRequired: true,
-                ),
+                if (_hasReinforcements == true) ...[
+                  const SizedBox(height: 16),
+                  CustomDropdown(
+                    label: 'Frecuencia de Refuerzos',
+                    value: _reinforcementFrequency,
+                    items: const ['Trimestral', 'Semestral', 'Anual'],
+                    onChanged: (value) {
+                      setState(() {
+                        _reinforcementFrequency = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _numberOfReinforcementsController,
+                    label: 'Cantidad de Refuerzos',
+                    keyboardType: TextInputType.number,
+                    isRequired: true,
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _reinforcementAmountController,
+                    label: 'Monto de Refuerzos',
+                    keyboardType: TextInputType.number,
+                    isRequired: true,
+                  ),
+                ],
               ],
             ],
             const SizedBox(height: 16),
@@ -492,7 +495,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
-                if (_hasReinforcements == null) {
+                if (_hasReinforcements == null && _paymentFrequency != null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -504,6 +507,29 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
 
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) return;
+
+                // Validar refuerzos
+                if (_hasReinforcements == true &&
+                    _numberOfInstallmentsController.text.isNotEmpty &&
+                    _paymentFrequency != null) {
+                  final reinforcementError = validateReinforcements(
+                    numberOfInstallments:
+                        int.parse(_numberOfInstallmentsController.text),
+                    paymentFrequency: _paymentFrequency!,
+                    reinforcementFrequency: _reinforcementFrequency,
+                    numberOfReinforcements:
+                        _numberOfReinforcementsController.text.isNotEmpty
+                            ? int.parse(_numberOfReinforcementsController.text)
+                            : null,
+                  );
+                  if (reinforcementError != null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(reinforcementError)),
+                    );
+                    return;
+                  }
+                }
 
                 if (_isNewClient) {
                   budgetProvider.updateClient(
