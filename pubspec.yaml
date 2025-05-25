@@ -36,6 +36,7 @@ flutter:
     - assets/images/
     - assets/images/logo.png
     - assets/.env
+    - assets/paraguay.json
   fonts:
     - family: Poppins
       fonts:
@@ -43,8 +44,8 @@ flutter:
         - asset: assets/fonts/Poppins-Bold.ttf
           weight: 700
 flutter_launcher_icons:
-    android: true
-    ios: true
-    image_path: "assets/images/logo.png"
-    adaptive_icon_background: "#ffffff" # Color de fondo para Android (opcional)
-    adaptive_icon_foreground: "assets/images/logo.png" # Ícono principal para Android
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#ffffff" # Color de fondo para Android (opcional)
+  adaptive_icon_foreground: "assets/images/logo.png" # Ícono principal para Android

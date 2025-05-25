@@ -21,12 +21,12 @@ class CustomTagsInputField extends StatefulWidget {
 class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
   List<String> selectedTags = [];
   late TextEditingController _internalController;
+  FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _internalController = TextEditingController();
-    // Inicializar el controlador con los tags seleccionados
     if (widget.controller.text.isNotEmpty) {
       selectedTags =
           widget.controller.text.split(', ').map((tag) => tag.trim()).toList();
@@ -55,6 +55,7 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
   void dispose() {
     widget.controller.removeListener(_updateSelectedTags);
     _internalController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -96,13 +97,14 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
               if (!selectedTags.contains(selection)) {
                 selectedTags.add(selection);
                 widget.controller.text = selectedTags.join(', ');
-                _internalController
-                    .clear(); // Limpiar el campo para seguir escribiendo
+                _internalController.clear();
+                _focusNode.unfocus(); // Perder el foco tras seleccionar
               }
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
             _internalController = controller;
+            _focusNode = focusNode;
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -116,9 +118,7 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
                     : null,
               ),
               onChanged: (value) {
-                // Permitir al usuario editar manualmente el texto
                 if (value.endsWith(',') || value.endsWith(', ')) {
-                  // Si el usuario escribe una coma, interpretarlo como una nueva entrada
                   final newTag = value
                       .substring(
                           0, value.length - (value.endsWith(', ') ? 2 : 1))
@@ -130,12 +130,12 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
                       selectedTags.add(newTag);
                       widget.controller.text = selectedTags.join(', ');
                       controller.clear();
+                      _focusNode.unfocus(); // Perder el foco tras añadir
                     });
                   }
                 }
               },
               onSubmitted: (value) {
-                // Cuando el usuario presiona Enter, añadir la opción si es válida
                 final newTag = value.trim();
                 if (newTag.isNotEmpty &&
                     widget.options.contains(newTag) &&
@@ -144,10 +144,9 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
                     selectedTags.add(newTag);
                     widget.controller.text = selectedTags.join(', ');
                     controller.clear();
+                    _focusNode.unfocus(); // Perder el foco tras submit
                   });
                 }
-                // Mantener el foco para seguir escribiendo
-                focusNode.requestFocus();
               },
             );
           },
@@ -167,8 +166,6 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
                         title: Text(option),
                         onTap: () {
                           onSelected(option);
-                          // Mantener el foco en el campo
-                          FocusScope.of(context).requestFocus();
                         },
                       );
                     },
@@ -178,6 +175,23 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
             );
           },
         ),
+        if (selectedTags.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: selectedTags.map((tag) {
+              return Chip(
+                label: Text(tag),
+                onDeleted: () {
+                  setState(() {
+                    selectedTags.remove(tag);
+                    widget.controller.text = selectedTags.join(', ');
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }

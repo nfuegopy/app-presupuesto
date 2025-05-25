@@ -4,12 +4,16 @@ import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
 import '../../../auth/presentation/widgets/custom_dropdown.dart';
+import '../widgets/custom_enabled_dropdown.dart';
 import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 import '../widgets/client_search_select.dart';
 import '../../data/models/client_model.dart';
+import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -47,20 +51,10 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   String? _reinforcementFrequency;
   String? _reinforcementMonth;
 
-  final List<String> departamentos = [
-    'Central',
-    'Alto Paraná',
-    'Asunción',
-    'Cordillera',
-    'Itapúa',
-  ];
-  final List<String> ciudades = [
-    'Asunción',
-    'Ciudad del Este',
-    'Encarnación',
-    'Luque',
-    'San Lorenzo',
-  ];
+  List<ParaguayLocation> _locations = [];
+  List<String> _departamentos = [];
+  List<String> _ciudades = [];
+
   final List<String> months = [
     'Enero',
     'Febrero',
@@ -98,6 +92,32 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _priceController.text = widget.product.price.toString();
     _currency = widget.product.currency;
     _hasReinforcements = false;
+    _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    final String response = await rootBundle.loadString('assets/paraguay.json');
+    final List<dynamic> data = json.decode(response);
+    setState(() {
+      _locations = data.map((json) => ParaguayLocation.fromJson(json)).toList();
+      _departamentos = _locations.map((loc) => loc.departamento).toList();
+    });
+  }
+
+  void _updateCiudades(String? departamento) {
+    setState(() {
+      _departamento = departamento;
+      _ciudad = null; // Resetear ciudad al cambiar departamento
+      if (departamento != null) {
+        final selectedLocation = _locations.firstWhere(
+          (loc) => loc.departamento == departamento,
+          orElse: () => ParaguayLocation(departamento: '', ciudades: []),
+        );
+        _ciudades = selectedLocation.ciudades;
+      } else {
+        _ciudades = [];
+      }
+    });
   }
 
   @override
@@ -239,6 +259,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         _telefonoController.clear();
                         _ciudad = null;
                         _departamento = null;
+                        _updateCiudades(null);
                       }
                     });
                   },
@@ -260,6 +281,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _telefonoController.text = client.telefono ?? '';
                       _ciudad = client.ciudad;
                       _departamento = client.departamento;
+                      _updateCiudades(_departamento); // Cargar ciudades
                       budgetProvider.updateClient(
                         razonSocial: client.razonSocial,
                         ruc: client.ruc,
@@ -276,6 +298,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _telefonoController.clear();
                       _ciudad = null;
                       _departamento = null;
+                      _updateCiudades(null);
                       budgetProvider.updateClient(
                         razonSocial: '',
                         ruc: '',
@@ -318,26 +341,23 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 16),
-            CustomDropdown(
+            CustomEnabledDropdown(
               label: 'Departamento',
               value: _departamento,
-              items: departamentos,
-              onChanged: (value) {
-                setState(() {
-                  _departamento = value;
-                });
-              },
+              items: _departamentos,
+              onChanged: _updateCiudades,
             ),
             const SizedBox(height: 16),
-            CustomDropdown(
+            CustomEnabledDropdown(
               label: 'Ciudad',
               value: _ciudad,
-              items: ciudades,
+              items: _ciudades,
               onChanged: (value) {
                 setState(() {
                   _ciudad = value;
                 });
               },
+              enabled: _departamento != null, // Deshabilitar si no hay departamento
             ),
             const SizedBox(height: 32),
             Text(
@@ -549,7 +569,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) return;
 
-                // Validar refuerzos
                 if (_hasReinforcements == true &&
                     _numberOfInstallmentsController.text.isNotEmpty &&
                     _paymentFrequency != null) {
@@ -570,7 +589,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     );
                     return;
                   }
-                  // Validar mes de refuerzo anual
                   if (_reinforcementFrequency == 'Anual' &&
                       _reinforcementMonth == null) {
                     if (!context.mounted) return;
