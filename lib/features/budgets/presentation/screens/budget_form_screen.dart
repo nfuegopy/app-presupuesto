@@ -8,6 +8,8 @@ import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 import '../widgets/client_search_select.dart';
+import '../../data/models/client_model.dart';
+import '../utils/reinforcement_validator.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -33,6 +35,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _benefitsController = TextEditingController();
   String _searchQuery = '';
   bool _isNewClient = false;
+  ClientModel? _selectedClient;
 
   String? _ciudad;
   String? _departamento;
@@ -186,6 +189,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         width: 100,
                         height: 100,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                          Icons.broken_image,
+                          size: 100,
+                          color: Colors.grey,
+                        ),
                       ),
                   ],
                 ),
@@ -207,6 +216,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   onChanged: (value) {
                     setState(() {
                       _isNewClient = value ?? false;
+                      _selectedClient = null;
                       if (_isNewClient) {
                         _razonSocialController.clear();
                         _rucController.clear();
@@ -226,40 +236,42 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               ClientSearchSelect(
                 clients: budgetProvider.clients,
                 onClientSelected: (client) {
-                  if (client != null) {
-                    _razonSocialController.text = client.razonSocial;
-                    _rucController.text = client.ruc;
-                    _emailController.text = client.email ?? '';
-                    _telefonoController.text = client.telefono ?? '';
-                    _ciudad = client.ciudad;
-                    _departamento = client.departamento;
-                    budgetProvider.updateClient(
-                      razonSocial: client.razonSocial,
-                      ruc: client.ruc,
-                      email: client.email,
-                      telefono: client.telefono,
-                      ciudad: client.ciudad,
-                      departamento: client.departamento,
-                      selectedClientId: client.id, // Pasar ID del cliente
-                    );
-                  } else {
-                    _razonSocialController.clear();
-                    _rucController.clear();
-                    _emailController.clear();
-                    _telefonoController.clear();
-                    _ciudad = null;
-                    _departamento = null;
-                    budgetProvider.updateClient(
-                      razonSocial: '',
-                      ruc: '',
-                      email: null,
-                      telefono: null,
-                      ciudad: null,
-                      departamento: null,
-                      selectedClientId: null,
-                    );
-                  }
-                  setState(() {});
+                  setState(() {
+                    _selectedClient = client;
+                    if (client != null) {
+                      _razonSocialController.text = client.razonSocial;
+                      _rucController.text = client.ruc;
+                      _emailController.text = client.email ?? '';
+                      _telefonoController.text = client.telefono ?? '';
+                      _ciudad = client.ciudad;
+                      _departamento = client.departamento;
+                      budgetProvider.updateClient(
+                        razonSocial: client.razonSocial,
+                        ruc: client.ruc,
+                        email: client.email,
+                        telefono: client.telefono,
+                        ciudad: client.ciudad,
+                        departamento: client.departamento,
+                        selectedClientId: client.id,
+                      );
+                    } else {
+                      _razonSocialController.clear();
+                      _rucController.clear();
+                      _emailController.clear();
+                      _telefonoController.clear();
+                      _ciudad = null;
+                      _departamento = null;
+                      budgetProvider.updateClient(
+                        razonSocial: '',
+                        ruc: '',
+                        email: null,
+                        telefono: null,
+                        ciudad: null,
+                        departamento: null,
+                        selectedClientId: null,
+                      );
+                    }
+                  });
                 },
                 onSearchChanged: (query) {
                   _searchQuery = query;
@@ -377,6 +389,13 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 isRequired: false,
               ),
               const SizedBox(height: 16),
+              CustomTextField(
+                controller: _numberOfInstallmentsController,
+                label: 'Cantidad de Cuotas',
+                keyboardType: TextInputType.number,
+                isRequired: true,
+              ),
+              const SizedBox(height: 16),
               CustomDropdown(
                 label: 'Frecuencia de Cuotas',
                 value: _paymentFrequency,
@@ -387,63 +406,58 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   });
                 },
               ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _numberOfInstallmentsController,
-                label: 'Cantidad de Cuotas',
-                keyboardType: TextInputType.number,
-                isRequired: true,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Datos de Refuerzos',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              CustomDwBudget<bool>(
-                label: 'Refuerzos',
-                value: _hasReinforcements,
-                items: const [
-                  {'value': false, 'label': 'No'},
-                  {'value': true, 'label': 'Sí'},
-                ],
-                itemToString: (item) => item['label'] as String,
-                onChanged: (item) {
-                  setState(() {
-                    _hasReinforcements =
-                        item != null ? item['value'] as bool : false;
-                  });
-                },
-              ),
-              if (_hasReinforcements == true) ...[
+              if (_paymentFrequency != null) ...[
                 const SizedBox(height: 16),
-                CustomDropdown(
-                  label: 'Frecuencia de Refuerzos',
-                  value: _reinforcementFrequency,
-                  items: const ['Trimestral', 'Semestral', 'Anual'],
-                  onChanged: (value) {
+                Text(
+                  'Datos de Refuerzos',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                CustomDwBudget<bool>(
+                  label: 'Refuerzos',
+                  value: _hasReinforcements,
+                  items: const [
+                    {'value': false, 'label': 'No'},
+                    {'value': true, 'label': 'Sí'},
+                  ],
+                  itemToString: (item) => item['label'] as String,
+                  onChanged: (item) {
                     setState(() {
-                      _reinforcementFrequency = value;
+                      _hasReinforcements =
+                          item != null ? item['value'] as bool : false;
                     });
                   },
                 ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _numberOfReinforcementsController,
-                  label: 'Cantidad de Refuerzos',
-                  keyboardType: TextInputType.number,
-                  isRequired: true,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _reinforcementAmountController,
-                  label: 'Monto de Refuerzos',
-                  keyboardType: TextInputType.number,
-                  isRequired: true,
-                ),
+                if (_hasReinforcements == true) ...[
+                  const SizedBox(height: 16),
+                  CustomDropdown(
+                    label: 'Frecuencia de Refuerzos',
+                    value: _reinforcementFrequency,
+                    items: const ['Trimestral', 'Semestral', 'Anual'],
+                    onChanged: (value) {
+                      setState(() {
+                        _reinforcementFrequency = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _numberOfReinforcementsController,
+                    label: 'Cantidad de Refuerzos',
+                    keyboardType: TextInputType.number,
+                    isRequired: true,
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _reinforcementAmountController,
+                    label: 'Monto de Refuerzos',
+                    keyboardType: TextInputType.number,
+                    isRequired: true,
+                  ),
+                ],
               ],
             ],
             const SizedBox(height: 16),
@@ -481,7 +495,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
-                if (_hasReinforcements == null) {
+                if (_hasReinforcements == null && _paymentFrequency != null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -494,26 +508,48 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) return;
 
-                final existingClient = _isNewClient
-                    ? null
-                    : budgetProvider.clients.firstWhere(
-                        (client) =>
-                            client.razonSocial.toLowerCase() ==
-                                _searchQuery.toLowerCase() ||
-                            client.ruc.toLowerCase() ==
-                                _searchQuery.toLowerCase(),
-                        orElse: () => null as dynamic,
-                      );
+                // Validar refuerzos
+                if (_hasReinforcements == true &&
+                    _numberOfInstallmentsController.text.isNotEmpty &&
+                    _paymentFrequency != null) {
+                  final reinforcementError = validateReinforcements(
+                    numberOfInstallments:
+                        int.parse(_numberOfInstallmentsController.text),
+                    paymentFrequency: _paymentFrequency!,
+                    reinforcementFrequency: _reinforcementFrequency,
+                    numberOfReinforcements:
+                        _numberOfReinforcementsController.text.isNotEmpty
+                            ? int.parse(_numberOfReinforcementsController.text)
+                            : null,
+                  );
+                  if (reinforcementError != null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(reinforcementError)),
+                    );
+                    return;
+                  }
+                }
 
-                if (existingClient != null) {
+                if (_isNewClient) {
                   budgetProvider.updateClient(
-                    razonSocial: existingClient.razonSocial,
-                    ruc: existingClient.ruc,
-                    email: existingClient.email,
-                    telefono: existingClient.telefono,
-                    ciudad: existingClient.ciudad,
-                    departamento: existingClient.departamento,
-                    selectedClientId: existingClient.id,
+                    razonSocial: _razonSocialController.text.trim(),
+                    ruc: _rucController.text.trim(),
+                    email: _emailController.text.trim(),
+                    telefono: _telefonoController.text.trim(),
+                    ciudad: _ciudad,
+                    departamento: _departamento,
+                    selectedClientId: null,
+                  );
+                } else if (_selectedClient != null) {
+                  budgetProvider.updateClient(
+                    razonSocial: _selectedClient!.razonSocial,
+                    ruc: _selectedClient!.ruc,
+                    email: _selectedClient!.email,
+                    telefono: _selectedClient!.telefono,
+                    ciudad: _selectedClient!.ciudad,
+                    departamento: _selectedClient!.departamento,
+                    selectedClientId: _selectedClient!.id,
                   );
                 } else {
                   budgetProvider.updateClient(
@@ -523,6 +559,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     telefono: _telefonoController.text.trim(),
                     ciudad: _ciudad,
                     departamento: _departamento,
+                    selectedClientId: null,
                   );
                 }
 

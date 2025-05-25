@@ -196,16 +196,18 @@ class PdfGenerator {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
         header: (pw.Context context) {
           return pw.Column(
             children: [
               pw.Image(pw.MemoryImage(logoData), width: 100, height: 100),
-              pw.SizedBox(height: 8),
+              pw.SizedBox(height: 12),
               pw.Container(
                 alignment: pw.Alignment.centerRight,
                 margin: const pw.EdgeInsets.only(bottom: 16),
-                child:
-                    pw.Text(formattedDate, style: pw.TextStyle(fontSize: 12)),
+                child: pw.Text(formattedDate,
+                    style:
+                        pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
               ),
             ],
           );
@@ -217,9 +219,11 @@ class PdfGenerator {
             child: pw.Column(
               children: [
                 pw.Text('www.enginepy.com',
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                    style:
+                        pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
                 pw.Text('Cel. (0985) 242811',
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                    style:
+                        pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
               ],
             ),
           );
@@ -264,41 +268,45 @@ class PdfGenerator {
           }
 
           return [
-            pw.Text('Señor', style: pw.TextStyle(fontSize: 14)),
+            pw.Text('Señor',
+                style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800)),
             pw.Text(client.razonSocial,
-                style:
-                    pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black)),
             pw.SizedBox(height: 16),
             pw.Text(
               'Por el presente nos dirigimos a usted a modo de presentar la cotización por el siguiente producto: (1) Una ${product.name}',
-              style: pw.TextStyle(fontSize: 14),
+              style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800),
             ),
             pw.SizedBox(height: 16),
             pw.Text('MAQUINARIA',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue800)),
             pw.SizedBox(height: 8),
-            pw.Text('Retropala ${product.name}'),
-            pw.SizedBox(height: 8),
-            if (product.brand != null) pw.Text('Marca: ${product.brand}'),
-            if (product.model != null) pw.Text('Modelo: ${product.model}'),
-            if (product.fuelType != null)
-              pw.Text('Tipo de Combustible: ${product.fuelType}'),
+            pw.Text('Retropala ${product.name}',
+                style: pw.TextStyle(fontSize: 14)),
             pw.SizedBox(height: 8),
             if (descriptionImageData != null) ...[
               pw.Image(pw.MemoryImage(descriptionImageData),
                   width: 400, height: 300, fit: pw.BoxFit.contain),
-              pw.SizedBox(height: 8),
+              pw.SizedBox(height: 12),
             ],
-            pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-'),
+            pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-',
+                style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
             pw.SizedBox(height: 16),
             if (financingPlans.isNotEmpty) ...[
               pw.Text('FINANCIACIÓN',
                   style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue800)),
               pw.SizedBox(height: 8),
               pw.Text('PLAN DE FINANCIACIÓN $currency',
-                  style: pw.TextStyle(fontSize: 12)),
+                  style: pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
               pw.SizedBox(height: 8),
               pw.Table.fromTextArray(
                 headers: [
@@ -310,11 +318,18 @@ class PdfGenerator {
                   'Monto de refuerzos',
                 ],
                 data: financingPlans,
-                headerStyle:
-                    pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                cellStyle: pw.TextStyle(fontSize: 9),
+                headerStyle: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white),
+                cellStyle: pw.TextStyle(fontSize: 9, color: PdfColors.black),
                 cellAlignment: pw.Alignment.center,
-                cellPadding: const pw.EdgeInsets.all(3),
+                cellPadding: const pw.EdgeInsets.all(4),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColors.blue800),
+                cellDecoration: (index, data, rowNum) => const pw.BoxDecoration(
+                    border: pw.Border(
+                        bottom: pw.BorderSide(color: PdfColors.grey300))),
                 columnWidths: {
                   0: pw.FixedColumnWidth(90),
                   1: pw.FixedColumnWidth(70),
@@ -330,7 +345,9 @@ class PdfGenerator {
                 generatedSchedule.isNotEmpty) ...[
               pw.Text('CRONOGRAMA DE CUOTAS',
                   style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue800)),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.start,
@@ -342,10 +359,20 @@ class PdfGenerator {
                       headers: ['Cuota', 'Monto'],
                       data: columnData,
                       headerStyle: pw.TextStyle(
-                          fontSize: 10, fontWeight: pw.FontWeight.bold),
-                      cellStyle: pw.TextStyle(fontSize: 9),
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white),
+                      cellStyle:
+                          pw.TextStyle(fontSize: 9, color: PdfColors.black),
                       cellAlignment: pw.Alignment.center,
-                      cellPadding: const pw.EdgeInsets.all(3),
+                      cellPadding: const pw.EdgeInsets.all(4),
+                      headerDecoration:
+                          const pw.BoxDecoration(color: PdfColors.blue800),
+                      cellDecoration: (index, data, rowNum) =>
+                          const pw.BoxDecoration(
+                              border: pw.Border(
+                                  bottom:
+                                      pw.BorderSide(color: PdfColors.grey300))),
                       columnWidths: {
                         0: pw.FixedColumnWidth(60),
                         1: pw.FixedColumnWidth(70),
@@ -358,33 +385,68 @@ class PdfGenerator {
             ],
             if (paymentMethod != 'Financiado') ...[
               pw.Text(
-                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-'),
-              pw.SizedBox(height: 16),
-            ],
-            if (validityOffer != null && validityOffer.isNotEmpty) ...[
-              pw.Text('VALIDEZ DE LA OFERTA',
+                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-',
                   style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
-              pw.Text(validityOffer, style: pw.TextStyle(fontSize: 14)),
-              pw.SizedBox(height: 16),
-            ],
-            if (benefits != null && benefits.isNotEmpty) ...[
-              pw.Text('BENEFICIOS',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
-              pw.Text(benefits, style: pw.TextStyle(fontSize: 14)),
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.black)),
               pw.SizedBox(height: 16),
             ],
             if (productImageData != null) ...[
-              pw.Text('IMAGEN DEL PRODUCTO',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
               pw.Image(pw.MemoryImage(productImageData),
-                  width: 400, height: 300, fit: pw.BoxFit.contain),
+                  width: 400, height: 200, fit: pw.BoxFit.contain),
               pw.SizedBox(height: 16),
+            ],
+            if (validityOffer != null && validityOffer.isNotEmpty) ...[
+              pw.Container(
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Validez de la Oferta',
+                        style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue800)),
+                    pw.SizedBox(height: 4),
+                    pw.Text(validityOffer,
+                        style: pw.TextStyle(
+                            fontSize: 12, color: PdfColors.grey800)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 12),
+            ],
+            if (benefits != null && benefits.isNotEmpty) ...[
+              pw.Container(
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Beneficios',
+                        style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue800)),
+                    pw.SizedBox(height: 4),
+                    pw.Text(benefits,
+                        style: pw.TextStyle(
+                            fontSize: 12, color: PdfColors.grey800)),
+                  ],
+                ),
+              ),
             ],
           ];
         },
