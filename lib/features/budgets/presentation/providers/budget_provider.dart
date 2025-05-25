@@ -14,7 +14,7 @@ import 'dart:math';
 class BudgetProvider with ChangeNotifier {
   Client? _client;
   String? _clientId;
-  String? _selectedClientId; // Nuevo campo para cliente seleccionado
+  String? _selectedClientId;
   Product? _product;
   String? _error;
   String? _currency;
@@ -91,7 +91,7 @@ class BudgetProvider with ChangeNotifier {
     String? telefono,
     String? ciudad,
     String? departamento,
-    String? selectedClientId, // Nuevo parámetro para ID de cliente seleccionado
+    String? selectedClientId,
   }) {
     if (razonSocial.isEmpty || ruc.isEmpty) {
       _error = 'Razón Social y RUC son obligatorios.';
@@ -107,7 +107,7 @@ class BudgetProvider with ChangeNotifier {
       departamento:
           departamento != null && departamento.isNotEmpty ? departamento : null,
     );
-    _selectedClientId = selectedClientId; // Asignar ID de cliente seleccionado
+    _selectedClientId = selectedClientId;
     _error = null;
     notifyListeners();
   }
@@ -248,11 +248,9 @@ class BudgetProvider with ChangeNotifier {
     }
 
     try {
-      // Usar cliente existente si _selectedClientId está definido
       if (_selectedClientId != null) {
         _clientId = _selectedClientId;
       } else {
-        // Crear nuevo cliente solo si no hay uno seleccionado
         final clientId = const Uuid().v4();
         final clientModel = ClientModel(
           id: clientId,
@@ -355,6 +353,7 @@ class BudgetProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = 'Error al generar o compartir el PDF: $e';
+      debugPrint('PDF Error: $e'); // Log para depuración
       notifyListeners();
     }
     notifyListeners();

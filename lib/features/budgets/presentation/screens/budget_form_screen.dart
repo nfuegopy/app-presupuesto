@@ -8,6 +8,7 @@ import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 import '../widgets/client_search_select.dart';
+import '../../data/models/client_model.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -33,6 +34,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _benefitsController = TextEditingController();
   String _searchQuery = '';
   bool _isNewClient = false;
+  ClientModel? _selectedClient; // Nuevo campo para cliente seleccionado
 
   String? _ciudad;
   String? _departamento;
@@ -186,6 +188,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         width: 100,
                         height: 100,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                          Icons.broken_image,
+                          size: 100,
+                          color: Colors.grey,
+                        ),
                       ),
                   ],
                 ),
@@ -207,6 +215,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   onChanged: (value) {
                     setState(() {
                       _isNewClient = value ?? false;
+                      _selectedClient = null; // Limpiar cliente seleccionado
                       if (_isNewClient) {
                         _razonSocialController.clear();
                         _rucController.clear();
@@ -226,40 +235,42 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               ClientSearchSelect(
                 clients: budgetProvider.clients,
                 onClientSelected: (client) {
-                  if (client != null) {
-                    _razonSocialController.text = client.razonSocial;
-                    _rucController.text = client.ruc;
-                    _emailController.text = client.email ?? '';
-                    _telefonoController.text = client.telefono ?? '';
-                    _ciudad = client.ciudad;
-                    _departamento = client.departamento;
-                    budgetProvider.updateClient(
-                      razonSocial: client.razonSocial,
-                      ruc: client.ruc,
-                      email: client.email,
-                      telefono: client.telefono,
-                      ciudad: client.ciudad,
-                      departamento: client.departamento,
-                      selectedClientId: client.id, // Pasar ID del cliente
-                    );
-                  } else {
-                    _razonSocialController.clear();
-                    _rucController.clear();
-                    _emailController.clear();
-                    _telefonoController.clear();
-                    _ciudad = null;
-                    _departamento = null;
-                    budgetProvider.updateClient(
-                      razonSocial: '',
-                      ruc: '',
-                      email: null,
-                      telefono: null,
-                      ciudad: null,
-                      departamento: null,
-                      selectedClientId: null,
-                    );
-                  }
-                  setState(() {});
+                  setState(() {
+                    _selectedClient = client;
+                    if (client != null) {
+                      _razonSocialController.text = client.razonSocial;
+                      _rucController.text = client.ruc;
+                      _emailController.text = client.email ?? '';
+                      _telefonoController.text = client.telefono ?? '';
+                      _ciudad = client.ciudad;
+                      _departamento = client.departamento;
+                      budgetProvider.updateClient(
+                        razonSocial: client.razonSocial,
+                        ruc: client.ruc,
+                        email: client.email,
+                        telefono: client.telefono,
+                        ciudad: client.ciudad,
+                        departamento: client.departamento,
+                        selectedClientId: client.id,
+                      );
+                    } else {
+                      _razonSocialController.clear();
+                      _rucController.clear();
+                      _emailController.clear();
+                      _telefonoController.clear();
+                      _ciudad = null;
+                      _departamento = null;
+                      budgetProvider.updateClient(
+                        razonSocial: '',
+                        ruc: '',
+                        email: null,
+                        telefono: null,
+                        ciudad: null,
+                        departamento: null,
+                        selectedClientId: null,
+                      );
+                    }
+                  });
                 },
                 onSearchChanged: (query) {
                   _searchQuery = query;
@@ -494,26 +505,25 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) return;
 
-                final existingClient = _isNewClient
-                    ? null
-                    : budgetProvider.clients.firstWhere(
-                        (client) =>
-                            client.razonSocial.toLowerCase() ==
-                                _searchQuery.toLowerCase() ||
-                            client.ruc.toLowerCase() ==
-                                _searchQuery.toLowerCase(),
-                        orElse: () => null as dynamic,
-                      );
-
-                if (existingClient != null) {
+                if (_isNewClient) {
                   budgetProvider.updateClient(
-                    razonSocial: existingClient.razonSocial,
-                    ruc: existingClient.ruc,
-                    email: existingClient.email,
-                    telefono: existingClient.telefono,
-                    ciudad: existingClient.ciudad,
-                    departamento: existingClient.departamento,
-                    selectedClientId: existingClient.id,
+                    razonSocial: _razonSocialController.text.trim(),
+                    ruc: _rucController.text.trim(),
+                    email: _emailController.text.trim(),
+                    telefono: _telefonoController.text.trim(),
+                    ciudad: _ciudad,
+                    departamento: _departamento,
+                    selectedClientId: null,
+                  );
+                } else if (_selectedClient != null) {
+                  budgetProvider.updateClient(
+                    razonSocial: _selectedClient!.razonSocial,
+                    ruc: _selectedClient!.ruc,
+                    email: _selectedClient!.email,
+                    telefono: _selectedClient!.telefono,
+                    ciudad: _selectedClient!.ciudad,
+                    departamento: _selectedClient!.departamento,
+                    selectedClientId: _selectedClient!.id,
                   );
                 } else {
                   budgetProvider.updateClient(
@@ -523,6 +533,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     telefono: _telefonoController.text.trim(),
                     ciudad: _ciudad,
                     departamento: _departamento,
+                    selectedClientId: null,
                   );
                 }
 
