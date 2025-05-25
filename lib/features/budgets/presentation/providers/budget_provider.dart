@@ -30,6 +30,7 @@ class BudgetProvider with ChangeNotifier {
   String? _validityOffer;
   String? _benefits;
   List<Map<String, dynamic>>? _amortizationSchedule;
+  List<ClientModel> _clients = []; // Nueva lista para clientes
 
   Client? get client => _client;
   String? get clientId => _clientId;
@@ -49,6 +50,7 @@ class BudgetProvider with ChangeNotifier {
   String? get validityOffer => _validityOffer;
   String? get benefits => _benefits;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
+  List<ClientModel> get clients => _clients; // Getter para clientes
 
   final CreateBudget _createBudget;
   final PdfGenerator _pdfGenerator;
@@ -58,6 +60,29 @@ class BudgetProvider with ChangeNotifier {
     PdfGenerator? pdfGenerator,
   })  : _createBudget = createBudget,
         _pdfGenerator = pdfGenerator ?? PdfGenerator();
+
+  // Nueva función para cargar clientes por vendedor
+  Future<void> loadClientsByVendor() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _error = 'Usuario no autenticado.';
+      notifyListeners();
+      return;
+    }
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('clients')
+          .where('createdBy', isEqualTo: user.uid)
+          .get();
+      _clients = querySnapshot.docs
+          .map((doc) => ClientModel.fromMap(doc.data(), doc.id))
+          .toList();
+      _error = null;
+    } catch (e) {
+      _error = 'Error al cargar clientes: $e';
+    }
+    notifyListeners();
+  }
 
   void updateClient({
     required String razonSocial,
@@ -153,14 +178,12 @@ class BudgetProvider with ChangeNotifier {
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      // Calcular la cuota usando el método francés
       double capital = price - delivery;
       double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
       double fixedMonthlyPayment =
           (capital * monthlyRate * pow(1 + monthlyRate, numberOfInstallments)) /
               (pow(1 + monthlyRate, numberOfInstallments) - 1);
 
-      // Generar la tabla de amortización
       _amortizationSchedule =
           AmortizationCalculator.calculateFrenchAmortization(
         capital: capital,
@@ -314,8 +337,8 @@ class BudgetProvider with ChangeNotifier {
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
         amortizationSchedule: _amortizationSchedule,
-        validityOffer: _validityOffer, // Pasar el campo
-        benefits: _benefits, // Pasar el campo
+        validityOffer: _validityOffer,
+        benefits: _benefits,
       );
       _error = null;
     } catch (e) {
@@ -343,6 +366,7 @@ class BudgetProvider with ChangeNotifier {
     _benefits = null;
     _amortizationSchedule = null;
     _error = null;
+    _clients = []; // Limpia la lista de clientes
     notifyListeners();
   }
 }
