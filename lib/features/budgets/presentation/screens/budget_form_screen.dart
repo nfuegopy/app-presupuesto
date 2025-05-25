@@ -32,7 +32,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
       TextEditingController(text: 'Valido 15 dias');
   final _benefitsController = TextEditingController();
   String _searchQuery = '';
-  bool _isNewClient = false; // Nuevo estado para el checkbox
+  bool _isNewClient = false;
 
   String? _ciudad;
   String? _departamento;
@@ -240,6 +240,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       telefono: client.telefono,
                       ciudad: client.ciudad,
                       departamento: client.departamento,
+                      selectedClientId: client.id, // Pasar ID del cliente
                     );
                   } else {
                     _razonSocialController.clear();
@@ -248,6 +249,15 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     _telefonoController.clear();
                     _ciudad = null;
                     _departamento = null;
+                    budgetProvider.updateClient(
+                      razonSocial: '',
+                      ruc: '',
+                      email: null,
+                      telefono: null,
+                      ciudad: null,
+                      departamento: null,
+                      selectedClientId: null,
+                    );
                   }
                   setState(() {});
                 },
@@ -503,6 +513,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     telefono: existingClient.telefono,
                     ciudad: existingClient.ciudad,
                     departamento: existingClient.departamento,
+                    selectedClientId: existingClient.id,
                   );
                 } else {
                   budgetProvider.updateClient(

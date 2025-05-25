@@ -14,6 +14,7 @@ import 'dart:math';
 class BudgetProvider with ChangeNotifier {
   Client? _client;
   String? _clientId;
+  String? _selectedClientId; // Nuevo campo para cliente seleccionado
   Product? _product;
   String? _error;
   String? _currency;
@@ -30,7 +31,7 @@ class BudgetProvider with ChangeNotifier {
   String? _validityOffer;
   String? _benefits;
   List<Map<String, dynamic>>? _amortizationSchedule;
-  List<ClientModel> _clients = []; // Nueva lista para clientes
+  List<ClientModel> _clients = [];
 
   Client? get client => _client;
   String? get clientId => _clientId;
@@ -50,7 +51,7 @@ class BudgetProvider with ChangeNotifier {
   String? get validityOffer => _validityOffer;
   String? get benefits => _benefits;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
-  List<ClientModel> get clients => _clients; // Getter para clientes
+  List<ClientModel> get clients => _clients;
 
   final CreateBudget _createBudget;
   final PdfGenerator _pdfGenerator;
@@ -61,7 +62,6 @@ class BudgetProvider with ChangeNotifier {
   })  : _createBudget = createBudget,
         _pdfGenerator = pdfGenerator ?? PdfGenerator();
 
-  // Nueva función para cargar clientes por vendedor
   Future<void> loadClientsByVendor() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -91,6 +91,7 @@ class BudgetProvider with ChangeNotifier {
     String? telefono,
     String? ciudad,
     String? departamento,
+    String? selectedClientId, // Nuevo parámetro para ID de cliente seleccionado
   }) {
     if (razonSocial.isEmpty || ruc.isEmpty) {
       _error = 'Razón Social y RUC son obligatorios.';
@@ -106,6 +107,7 @@ class BudgetProvider with ChangeNotifier {
       departamento:
           departamento != null && departamento.isNotEmpty ? departamento : null,
     );
+    _selectedClientId = selectedClientId; // Asignar ID de cliente seleccionado
     _error = null;
     notifyListeners();
   }
@@ -245,28 +247,33 @@ class BudgetProvider with ChangeNotifier {
       return;
     }
 
-    final clientId = const Uuid().v4();
-    final clientModel = ClientModel(
-      id: clientId,
-      razonSocial: _client!.razonSocial,
-      ruc: _client!.ruc,
-      email: _client!.email,
-      telefono: _client!.telefono,
-      ciudad: _client!.ciudad,
-      departamento: _client!.departamento,
-      createdBy: user.uid,
-    );
-
     try {
-      await FirebaseFirestore.instance
-          .collection('clients')
-          .doc(clientId)
-          .set(clientModel.toMap());
-      _clientId = clientId;
+      // Usar cliente existente si _selectedClientId está definido
+      if (_selectedClientId != null) {
+        _clientId = _selectedClientId;
+      } else {
+        // Crear nuevo cliente solo si no hay uno seleccionado
+        final clientId = const Uuid().v4();
+        final clientModel = ClientModel(
+          id: clientId,
+          razonSocial: _client!.razonSocial,
+          ruc: _client!.ruc,
+          email: _client!.email,
+          telefono: _client!.telefono,
+          ciudad: _client!.ciudad,
+          departamento: _client!.departamento,
+          createdBy: user.uid,
+        );
+        await FirebaseFirestore.instance
+            .collection('clients')
+            .doc(clientId)
+            .set(clientModel.toMap());
+        _clientId = clientId;
+      }
 
       final budget = Budget(
         id: const Uuid().v4(),
-        clientId: clientId,
+        clientId: _clientId!,
         product: _product!,
         currency: _currency!,
         price: _price!,
@@ -314,6 +321,11 @@ class BudgetProvider with ChangeNotifier {
 
   Future<void> saveAndSharePdf(BuildContext context) async {
     try {
+      if (_clientId == null) {
+        _error = 'No se ha seleccionado o creado un cliente.';
+        notifyListeners();
+        return;
+      }
       final client = await getClient(_clientId!);
       if (client == null) {
         _error = 'No se pudo cargar los datos del cliente.';
@@ -345,11 +357,13 @@ class BudgetProvider with ChangeNotifier {
       _error = 'Error al generar o compartir el PDF: $e';
       notifyListeners();
     }
+    notifyListeners();
   }
 
   void clear() {
     _client = null;
     _clientId = null;
+    _selectedClientId = null;
     _product = null;
     _currency = null;
     _price = null;
@@ -366,7 +380,7 @@ class BudgetProvider with ChangeNotifier {
     _benefits = null;
     _amortizationSchedule = null;
     _error = null;
-    _clients = []; // Limpia la lista de clientes
+    _clients = [];
     notifyListeners();
   }
 }
