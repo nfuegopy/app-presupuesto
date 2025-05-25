@@ -68,6 +68,22 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<void> resetPassword(String email) async {
+    try {
+      isLoading = true;
+      errorMessage = null;
+      notifyListeners();
+
+      await authRepository.resetPassword(email);
+      isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      isLoading = false;
+      errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
   Future<void> signOut() async {
     await authRepository.signOut();
     user = null;
