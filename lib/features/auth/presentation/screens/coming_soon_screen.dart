@@ -24,6 +24,22 @@ class ComingSoonScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Icon(
+                Icons.construction,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Construyendo',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
               Text(
                 'Estamos trabajando en esto',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(

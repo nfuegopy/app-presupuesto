@@ -4,6 +4,9 @@ import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../../../products/presentation/screens/product_list_screen.dart';
 import 'coming_soon_screen.dart';
+import '../widgets/card.dart';
+import '../../../budgets/presentation/screens/budget_alt_form_screen.dart';
+import '../../../budgets/presentation/screens/clients_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -67,21 +70,15 @@ class HomeScreen extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 32),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1, // Cuadrado
                 children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      minimumSize: const Size(200, 60),
-                    ),
+                  CustomCard(
+                    text: 'Productos',
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -90,26 +87,20 @@ class HomeScreen extends StatelessWidget {
                         ),
                       );
                     },
-                    child: Text(
-                      'Lista de Productos',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      minimumSize: const Size(200, 60),
-                    ),
+                  CustomCard(
+                    text: 'Clientes',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ClientsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  CustomCard(
+                    text: 'Cotizaciones',
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -118,13 +109,17 @@ class HomeScreen extends StatelessWidget {
                         ),
                       );
                     },
-                    child: Text(
-                      'Cotizar',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
+                  ),
+                  CustomCard(
+                    text: 'Cotizar',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BudgetAltFormScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
