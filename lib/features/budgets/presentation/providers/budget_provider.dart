@@ -28,6 +28,7 @@ class BudgetProvider with ChangeNotifier {
   String? _reinforcementFrequency;
   int? _numberOfReinforcements;
   double? _reinforcementAmount;
+  String? _reinforcementMonth;
   String? _validityOffer;
   String? _benefits;
   List<Map<String, dynamic>>? _amortizationSchedule;
@@ -48,6 +49,7 @@ class BudgetProvider with ChangeNotifier {
   String? get reinforcementFrequency => _reinforcementFrequency;
   int? get numberOfReinforcements => _numberOfReinforcements;
   double? get reinforcementAmount => _reinforcementAmount;
+  String? get reinforcementMonth => _reinforcementMonth;
   String? get validityOffer => _validityOffer;
   String? get benefits => _benefits;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
@@ -131,6 +133,7 @@ class BudgetProvider with ChangeNotifier {
     String? reinforcementFrequency,
     int? numberOfReinforcements,
     double? reinforcementAmount,
+    String? reinforcementMonth,
     String? validityOffer,
     String? benefits,
   }) {
@@ -160,6 +163,13 @@ class BudgetProvider with ChangeNotifier {
         notifyListeners();
         return;
       }
+      if (hasReinforcements == true &&
+          reinforcementFrequency == 'Anual' &&
+          reinforcementMonth == null) {
+        _error = 'Seleccione el mes de abono anual.';
+        notifyListeners();
+        return;
+      }
     }
 
     _currency = currency;
@@ -173,6 +183,7 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementFrequency = reinforcementFrequency;
     _numberOfReinforcements = numberOfReinforcements;
     _reinforcementAmount = reinforcementAmount;
+    _reinforcementMonth = reinforcementMonth;
     _validityOffer = validityOffer;
     _benefits = benefits;
     _error = null;
@@ -198,6 +209,8 @@ class BudgetProvider with ChangeNotifier {
             ? _generateReinforcements(numberOfReinforcements,
                 reinforcementAmount, reinforcementFrequency!)
             : null,
+        reinforcementMonth: reinforcementMonth,
+        paymentFrequency: paymentFrequency ?? 'Mensual',
       );
     } else {
       _amortizationSchedule = null;
@@ -346,6 +359,7 @@ class BudgetProvider with ChangeNotifier {
         reinforcementFrequency: _reinforcementFrequency,
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
+        reinforcementMonth: _reinforcementMonth,
         amortizationSchedule: _amortizationSchedule,
         validityOffer: _validityOffer,
         benefits: _benefits,
@@ -353,7 +367,7 @@ class BudgetProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = 'Error al generar o compartir el PDF: $e';
-      debugPrint('PDF Error: $e'); // Log para depuración
+      debugPrint('PDF Error: $e');
       notifyListeners();
     }
     notifyListeners();
@@ -375,6 +389,7 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementFrequency = null;
     _numberOfReinforcements = null;
     _reinforcementAmount = null;
+    _reinforcementMonth = null;
     _validityOffer = null;
     _benefits = null;
     _amortizationSchedule = null;

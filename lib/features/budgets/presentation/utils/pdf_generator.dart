@@ -25,6 +25,7 @@ class PdfGenerator {
     String? reinforcementFrequency,
     int? numberOfReinforcements,
     double? reinforcementAmount,
+    String? reinforcementMonth,
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
@@ -147,6 +148,8 @@ class PdfGenerator {
         numberOfInstallments: effectiveInstallments,
         fixedMonthlyPayment: fixedPayment,
         reinforcements: reinforcements,
+        reinforcementMonth: reinforcementMonth,
+        paymentFrequency: paymentFrequency,
       );
 
       generatedMonthlyPayment = generatedSchedule.isNotEmpty
@@ -261,6 +264,7 @@ class PdfGenerator {
               var installment = generatedSchedule[index];
               columnData.add([
                 installment['cuota'].toString(),
+                installment['month'] as String, // Nueva columna para mes
                 '$currency ${installment['pago_total'].toStringAsFixed(2)}.-',
               ]);
             }
@@ -356,7 +360,7 @@ class PdfGenerator {
                   return pw.Padding(
                     padding: const pw.EdgeInsets.only(right: 10),
                     child: pw.Table.fromTextArray(
-                      headers: ['Cuota', 'Monto'],
+                      headers: ['Cuota', 'Mes', 'Monto'], // Agregar columna Mes
                       data: columnData,
                       headerStyle: pw.TextStyle(
                           fontSize: 10,
@@ -374,8 +378,9 @@ class PdfGenerator {
                                   bottom:
                                       pw.BorderSide(color: PdfColors.grey300))),
                       columnWidths: {
-                        0: pw.FixedColumnWidth(60),
-                        1: pw.FixedColumnWidth(70),
+                        0: pw.FixedColumnWidth(40), // Ajustar ancho para Cuota
+                        1: pw.FixedColumnWidth(60), // Ancho para Mes
+                        2: pw.FixedColumnWidth(70), // Ancho para Monto
                       },
                     ),
                   );
@@ -471,6 +476,7 @@ class PdfGenerator {
     String? reinforcementFrequency,
     int? numberOfReinforcements,
     double? reinforcementAmount,
+    String? reinforcementMonth,
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
@@ -490,6 +496,7 @@ class PdfGenerator {
       reinforcementFrequency: reinforcementFrequency,
       numberOfReinforcements: numberOfReinforcements,
       reinforcementAmount: reinforcementAmount,
+      reinforcementMonth: reinforcementMonth,
       amortizationSchedule: amortizationSchedule,
       validityOffer: validityOffer,
       benefits: benefits,

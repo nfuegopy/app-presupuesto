@@ -45,6 +45,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   String? _paymentFrequency;
   bool? _hasReinforcements;
   String? _reinforcementFrequency;
+  String? _reinforcementMonth;
 
   final List<String> departamentos = [
     'Central',
@@ -59,6 +60,20 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     'Encarnación',
     'Luque',
     'San Lorenzo',
+  ];
+  final List<String> months = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
   ];
 
   final List<String> benefitOptions = [
@@ -366,6 +381,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               onChanged: (value) {
                 setState(() {
                   _paymentMethod = value;
+                  if (_paymentMethod != 'Financiado') {
+                    _hasReinforcements = false;
+                    _reinforcementFrequency = null;
+                    _reinforcementMonth = null;
+                  }
                 });
               },
             ),
@@ -403,6 +423,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 onChanged: (value) {
                   setState(() {
                     _paymentFrequency = value;
+                    _hasReinforcements = false;
+                    _reinforcementFrequency = null;
+                    _reinforcementMonth = null;
                   });
                 },
               ),
@@ -428,6 +451,10 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     setState(() {
                       _hasReinforcements =
                           item != null ? item['value'] as bool : false;
+                      if (!_hasReinforcements!) {
+                        _reinforcementFrequency = null;
+                        _reinforcementMonth = null;
+                      }
                     });
                   },
                 ),
@@ -440,9 +467,23 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     onChanged: (value) {
                       setState(() {
                         _reinforcementFrequency = value;
+                        _reinforcementMonth = null;
                       });
                     },
                   ),
+                  if (_reinforcementFrequency == 'Anual') ...[
+                    const SizedBox(height: 16),
+                    CustomDropdown(
+                      label: 'Mes de Abono Anual',
+                      value: _reinforcementMonth,
+                      items: months,
+                      onChanged: (value) {
+                        setState(() {
+                          _reinforcementMonth = value;
+                        });
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: _numberOfReinforcementsController,
@@ -514,18 +555,29 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     _paymentFrequency != null) {
                   final reinforcementError = validateReinforcements(
                     numberOfInstallments:
-                        int.parse(_numberOfInstallmentsController.text),
+                        int.tryParse(_numberOfInstallmentsController.text) ?? 0,
                     paymentFrequency: _paymentFrequency!,
                     reinforcementFrequency: _reinforcementFrequency,
-                    numberOfReinforcements:
-                        _numberOfReinforcementsController.text.isNotEmpty
-                            ? int.parse(_numberOfReinforcementsController.text)
-                            : null,
+                    numberOfReinforcements: _numberOfReinforcementsController
+                            .text.isNotEmpty
+                        ? int.tryParse(_numberOfReinforcementsController.text)
+                        : null,
                   );
                   if (reinforcementError != null) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(reinforcementError)),
+                    );
+                    return;
+                  }
+                  // Validar mes de refuerzo anual
+                  if (_reinforcementFrequency == 'Anual' &&
+                      _reinforcementMonth == null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text(
+                              'Por favor, seleccione el mes de abono anual')),
                     );
                     return;
                   }
@@ -595,6 +647,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _reinforcementAmountController.text.isNotEmpty
                           ? double.parse(_reinforcementAmountController.text)
                           : null,
+                  reinforcementMonth: _reinforcementMonth,
                   validityOffer: _validityOfferController.text.trim(),
                   benefits: _benefitsController.text.trim(),
                 );
