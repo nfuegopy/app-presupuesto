@@ -117,6 +117,15 @@ class AuthRepositoryImpl implements AuthRepository {
     await prefs?.setString('user_email', email);
   }
 
+  @override
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      throw Exception(_handleAuthError(e));
+    }
+  }
+
   String _handleAuthError(dynamic error) {
     if (error is firebase_auth.FirebaseAuthException) {
       switch (error.code) {

@@ -5,7 +5,7 @@ import 'package:animate_do/animate_do.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
-import '../widgets/email_text_field.dart'; // Nuevo import
+import '../widgets/email_text_field.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (authProvider.storedEmail != null) {
       _emailController.text = authProvider.storedEmail!;
     }
-    _registerEmailController.text = '@enginepy.com'; // Inicializar con dominio
+    _registerEmailController.text = '@enginepy.com';
   }
 
   @override
@@ -94,7 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Logo
                           Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
@@ -200,6 +199,69 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
+                            TextButton(
+                              onPressed: () {
+                                final emailController = TextEditingController();
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Restablecer Contraseña'),
+                                    content: CustomTextField(
+                                      controller: emailController,
+                                      label: 'Correo Electrónico',
+                                      keyboardType: TextInputType.emailAddress,
+                                      isRequired: true,
+                                      prefixIcon: Icons.email,
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      CustomButton(
+                                        text: 'Enviar',
+                                        onPressed: () async {
+                                          final email =
+                                              emailController.text.trim();
+                                          if (email.isEmpty) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Ingrese un correo electrónico')),
+                                            );
+                                            return;
+                                          }
+                                          try {
+                                            await context
+                                                .read<AuthProvider>()
+                                                .resetPassword(email);
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Correo de restablecimiento enviado')),
+                                            );
+                                            Navigator.pop(context);
+                                          } catch (e) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'Error: ${e.toString().replaceFirst('Exception: ', '')}')),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                '¿Olvidaste tu contraseña?',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
                           ] else ...[
                             CustomTextField(
                               controller: _nombreController,
@@ -265,7 +327,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 final password =
                                     _registerPasswordController.text.trim();
 
-                                // Validar campos
                                 if (nombre.isEmpty ||
                                     apellido.isEmpty ||
                                     email == '@enginepy.com' ||
@@ -285,7 +346,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   );
                                   return;
                                 }
-
+                                if (!email.endsWith('@enginepy.com')) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'El correo debe terminar en @enginepy.com')),
+                                  );
+                                  return;
+                                }
                                 authProvider.createUser(
                                   email: email,
                                   password: password,
