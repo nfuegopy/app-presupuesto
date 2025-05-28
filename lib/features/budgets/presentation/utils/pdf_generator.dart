@@ -84,7 +84,7 @@ class PdfGenerator {
         'Asunción, ${now.day} de ${months[now.month - 1]} del ${now.year}';
 
     List<List<String>> financingPlans = [];
-    List<Map<String, dynamic>> generatedSchedule = [];
+    List<Map<String, dynamic>> schedule = amortizationSchedule ?? [];
     double generatedMonthlyPayment = 0.0;
     double generatedTotalToPay = 0.0;
 
@@ -94,22 +94,19 @@ class PdfGenerator {
         numberOfInstallments != null) {
       double capital = price - (delivery ?? 0);
       double monthlyRate = currency == 'USD' ? 0.00001 : 0.018;
-      int effectiveInstallments;
-      double adjustedRate = monthlyRate;
+      int effectiveInstallments = numberOfInstallments;
 
-      if (paymentFrequency == 'Mensual') {
-        effectiveInstallments = numberOfInstallments;
-      } else if (paymentFrequency == 'Semestral') {
-        effectiveInstallments = numberOfInstallments ~/ 6;
-        adjustedRate = pow(1 + monthlyRate, 6) - 1;
-      } else if (paymentFrequency == 'Trimestral') {
-        effectiveInstallments = numberOfInstallments ~/ 3;
-        adjustedRate = pow(1 + monthlyRate, 3) - 1;
-      } else if (paymentFrequency == 'Anual') {
-        effectiveInstallments = numberOfInstallments ~/ 12;
-        adjustedRate = pow(1 + monthlyRate, 12) - 1;
-      } else {
-        effectiveInstallments = numberOfInstallments;
+      double periodicRate;
+      switch (paymentFrequency) {
+        case 'Trimestral':
+          periodicRate = pow(1 + monthlyRate, 3) - 1;
+          break;
+        case 'Semestral':
+          periodicRate = pow(1 + monthlyRate, 6) - 1;
+          break;
+        case 'Mensual':
+        default:
+          periodicRate = monthlyRate;
       }
 
       Map<int, double>? reinforcements;
@@ -138,45 +135,54 @@ class PdfGenerator {
       }
 
       double fixedPayment = (capital *
-              adjustedRate *
-              pow(1 + adjustedRate, effectiveInstallments)) /
-          (pow(1 + adjustedRate, effectiveInstallments) - 1);
+              periodicRate *
+              pow(1 + periodicRate, effectiveInstallments)) /
+          (pow(1 + periodicRate, effectiveInstallments) - 1);
 
-      generatedSchedule = AmortizationCalculator.calculateFrenchAmortization(
-        capital: capital,
-        monthlyRate: adjustedRate,
-        numberOfInstallments: effectiveInstallments,
-        fixedMonthlyPayment: fixedPayment,
-        reinforcements: reinforcements,
-        reinforcementMonth: reinforcementMonth,
-        paymentFrequency: paymentFrequency,
-      );
+      // Generar financingPlans siempre para "Financiado"
+      String planName = '';
+      switch (paymentFrequency) {
+        case 'Mensual':
+          planName = delivery != null && delivery > 0
+              ? 'Plan mensual con entrega'
+              : 'Plan mensual sin entrega';
+          break;
+        case 'Semestral':
+          planName = delivery != null && delivery > 0
+              ? 'Plan semestral con entrega'
+              : 'Plan semestral sin entrega';
+          break;
+        case 'Trimestral':
+          planName = delivery != null && delivery > 0
+              ? 'Plan trimestral con entrega'
+              : 'Plan trimestral sin entrega';
+          break;
+        case 'Anual':
+          planName = delivery != null && delivery > 0
+              ? 'Plan anual con entrega'
+              : 'Plan anual sin entrega';
+          break;
+      }
 
-      generatedMonthlyPayment = generatedSchedule.isNotEmpty
-          ? (generatedSchedule[0]['pago_total'] as double)
-          : 0;
-      generatedTotalToPay = generatedSchedule.fold(
+      if (schedule.isEmpty) {
+        schedule = AmortizationCalculator.calculateFrenchAmortization(
+          capital: capital,
+          monthlyRate: monthlyRate,
+          numberOfInstallments: effectiveInstallments,
+          fixedMonthlyPayment: fixedPayment,
+          reinforcements: reinforcements,
+          reinforcementMonth: reinforcementMonth,
+          paymentFrequency: paymentFrequency,
+          annualNominalRate: 0.09,
+        );
+      }
+
+      generatedMonthlyPayment = schedule.isNotEmpty
+          ? (schedule[0]['pago_total'] as double)
+          : fixedPayment;
+      generatedTotalToPay = schedule.fold(
               0.0, (sum, item) => sum + (item['pago_total'] as double)) +
           (delivery ?? 0);
-
-      String planName = '';
-      if (paymentFrequency == 'Mensual') {
-        planName = delivery != null && delivery > 0
-            ? 'Plan mensual con entrega'
-            : 'Plan mensual sin entrega';
-      } else if (paymentFrequency == 'Semestral') {
-        planName = delivery != null && delivery > 0
-            ? 'Plan semestral con entrega'
-            : 'Plan semestral sin entrega';
-      } else if (paymentFrequency == 'Trimestral') {
-        planName = delivery != null && delivery > 0
-            ? 'Plan trimestral con entrega'
-            : 'Plan trimestral sin entrega';
-      } else if (paymentFrequency == 'Anual') {
-        planName = delivery != null && delivery > 0
-            ? 'Plan anual con entrega'
-            : 'Plan anual sin entrega';
-      }
 
       financingPlans = [
         [
@@ -235,36 +241,27 @@ class PdfGenerator {
           double totalToPay = price;
           double? monthlyPayment;
 
-          if (paymentMethod == 'Financiado' && generatedSchedule.isNotEmpty) {
-            totalToPay = generatedTotalToPay;
-            monthlyPayment = generatedMonthlyPayment;
-          } else if (amortizationSchedule != null &&
-              amortizationSchedule.isNotEmpty) {
-            totalToPay = amortizationSchedule.fold(
+          if (paymentMethod == 'Financiado' && schedule.isNotEmpty) {
+            totalToPay = schedule.fold(
                     0.0, (sum, item) => sum + (item['pago_total'] as double)) +
                 (delivery ?? 0);
-            monthlyPayment = amortizationSchedule[0]['pago_total'] as double;
+            monthlyPayment = schedule[0]['pago_total'] as double;
           } else if (paymentMethod == 'Financiado' && delivery != null) {
             totalToPay += (delivery ?? 0);
           }
 
           List<List<List<String>>> scheduleColumns = [];
           const int maxRowsPerColumn = 24;
-          int numberOfColumns =
-              (generatedSchedule.length / maxRowsPerColumn).ceil();
+          int numberOfColumns = (schedule.length / maxRowsPerColumn).ceil();
           for (int col = 0; col < numberOfColumns; col++) {
             List<List<String>> columnData = [];
             int startIndex = col * maxRowsPerColumn;
-            int rowsInThisColumn = min(
-              maxRowsPerColumn,
-              generatedSchedule.length - startIndex,
-            );
-            for (int row = 0; row < rowsInThisColumn; row++) {
-              int index = startIndex + row;
-              var installment = generatedSchedule[index];
+            int endIndex = min(startIndex + maxRowsPerColumn, schedule.length);
+            for (int i = startIndex; i < endIndex; i++) {
+              var installment = schedule[i];
               columnData.add([
                 installment['cuota'].toString(),
-                installment['month'] as String, // Nueva columna para mes
+                installment['month'] as String,
                 '$currency ${installment['pago_total'].toStringAsFixed(2)}.-',
               ]);
             }
@@ -345,8 +342,7 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 16),
             ],
-            if (paymentMethod == 'Financiado' &&
-                generatedSchedule.isNotEmpty) ...[
+            if (paymentMethod == 'Financiado' && schedule.isNotEmpty) ...[
               pw.Text('CRONOGRAMA DE CUOTAS',
                   style: pw.TextStyle(
                       fontSize: 16,
@@ -360,7 +356,7 @@ class PdfGenerator {
                   return pw.Padding(
                     padding: const pw.EdgeInsets.only(right: 10),
                     child: pw.Table.fromTextArray(
-                      headers: ['Cuota', 'Mes', 'Monto'], // Agregar columna Mes
+                      headers: ['Cuota', 'Mes', 'Monto'],
                       data: columnData,
                       headerStyle: pw.TextStyle(
                           fontSize: 10,
@@ -378,9 +374,9 @@ class PdfGenerator {
                                   bottom:
                                       pw.BorderSide(color: PdfColors.grey300))),
                       columnWidths: {
-                        0: pw.FixedColumnWidth(40), // Ajustar ancho para Cuota
-                        1: pw.FixedColumnWidth(60), // Ancho para Mes
-                        2: pw.FixedColumnWidth(70), // Ancho para Monto
+                        0: pw.FixedColumnWidth(40),
+                        1: pw.FixedColumnWidth(60),
+                        2: pw.FixedColumnWidth(70),
                       },
                     ),
                   );
