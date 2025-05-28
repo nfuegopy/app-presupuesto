@@ -51,6 +51,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   String? _reinforcementMonth;
   Product? _selectedProduct;
 
+  bool _isLoading = false; // Added state variable
+
   List<ParaguayLocation> _locations = [];
   List<String> _departamentos = [];
   List<String> _ciudades = [];
@@ -592,6 +594,9 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
+                if (_isLoading) return; // Prevent multiple submissions
+
+                // Existing validation logic
                 if (_selectedProduct == null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -646,98 +651,143 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   }
                 }
 
-                if (_isNewClient) {
-                  budgetProvider.updateClient(
-                    razonSocial: _razonSocialController.text.trim(),
-                    ruc: _rucController.text.trim(),
-                    email: _emailController.text.trim(),
-                    telefono: _telefonoController.text.trim(),
-                    ciudad: _ciudad,
-                    departamento: _departamento,
-                    selectedClientId: null,
-                  );
-                } else if (_selectedClient != null) {
-                  budgetProvider.updateClient(
-                    razonSocial: _selectedClient!.razonSocial,
-                    ruc: _selectedClient!.ruc,
-                    email: _selectedClient!.email,
-                    telefono: _selectedClient!.telefono,
-                    ciudad: _selectedClient!.ciudad,
-                    departamento: _selectedClient!.departamento,
-                    selectedClientId: _selectedClient!.id,
-                  );
-                } else {
-                  budgetProvider.updateClient(
-                    razonSocial: _razonSocialController.text.trim(),
-                    ruc: _rucController.text.trim(),
-                    email: _emailController.text.trim(),
-                    telefono: _telefonoController.text.trim(),
-                    ciudad: _ciudad,
-                    departamento: _departamento,
-                    selectedClientId: null,
-                  );
-                }
-
-                if (budgetProvider.error != null) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(budgetProvider.error!)),
-                  );
-                  return;
-                }
-
-                budgetProvider.updatePaymentDetails(
-                  currency: _currency ?? _selectedProduct!.currency,
-                  price: double.tryParse(_priceController.text) ??
-                      _selectedProduct!.price,
-                  paymentMethod: _paymentMethod ?? 'Contado',
-                  financingType: _financingType,
-                  delivery: _deliveryController.text.isNotEmpty
-                      ? double.parse(_deliveryController.text)
-                      : 0,
-                  paymentFrequency: _paymentFrequency,
-                  numberOfInstallments:
-                      _numberOfInstallmentsController.text.isNotEmpty
-                          ? int.parse(_numberOfInstallmentsController.text)
-                          : null,
-                  hasReinforcements: _hasReinforcements,
-                  reinforcementFrequency: _reinforcementFrequency,
-                  numberOfReinforcements:
-                      _numberOfReinforcementsController.text.isNotEmpty
-                          ? int.parse(_numberOfReinforcementsController.text)
-                          : null,
-                  reinforcementAmount:
-                      _reinforcementAmountController.text.isNotEmpty
-                          ? double.parse(_reinforcementAmountController.text)
-                          : null,
-                  reinforcementMonth: _reinforcementMonth,
-                  validityOffer: _validityOfferController.text.trim(),
-                  benefits: _benefitsController.text.trim(),
+                // Start loading indication
+                setState(() {
+                  _isLoading = true;
+                });
+                // Show a modal loading dialog
+                if (!context.mounted) return; // Check before showing dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return const Dialog(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(width: 20),
+                            Text("Generando presupuesto..."),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
 
-                if (budgetProvider.error != null) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(budgetProvider.error!)),
-                  );
-                  return;
-                }
+                try {
+                  // Logic for updating client
+                  if (_isNewClient) {
+                    budgetProvider.updateClient(
+                      razonSocial: _razonSocialController.text.trim(),
+                      ruc: _rucController.text.trim(),
+                      email: _emailController.text.trim(),
+                      telefono: _telefonoController.text.trim(),
+                      ciudad: _ciudad,
+                      departamento: _departamento,
+                      selectedClientId: null,
+                    );
+                  } else if (_selectedClient != null) {
+                     // Client was selected, use their details, potentially with edits from fields
+                    budgetProvider.updateClient(
+                      razonSocial: _razonSocialController.text.trim(), // Use controller data
+                      ruc: _rucController.text.trim(),              // Use controller data
+                      email: _emailController.text.trim(),            // Use controller data
+                      telefono: _telefonoController.text.trim(),        // Use controller data
+                      ciudad: _ciudad,                                // Use state variable for dropdown
+                      departamento: _departamento,                    // Use state variable for dropdown
+                      selectedClientId: _selectedClient!.id,          // Keep the selected ID
+                    );
+                  } else {
+                     // No client selected, and not a new client (e.g., fields typed directly)
+                    budgetProvider.updateClient(
+                      razonSocial: _razonSocialController.text.trim(),
+                      ruc: _rucController.text.trim(),
+                      email: _emailController.text.trim(),
+                      telefono: _telefonoController.text.trim(),
+                      ciudad: _ciudad,
+                      departamento: _departamento,
+                      selectedClientId: null,
+                    );
+                  }
 
-                await budgetProvider.createBudget();
-                if (budgetProvider.error != null) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(budgetProvider.error!)),
-                  );
-                  return;
-                }
+                  if (budgetProvider.error != null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(budgetProvider.error!)),
+                    );
+                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                  }
 
-                await budgetProvider.saveAndSharePdf(context);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Presupuesto generado y guardado')),
-                );
+                  // Logic for updating payment details
+                  budgetProvider.updatePaymentDetails(
+                    currency: _currency ?? _selectedProduct!.currency,
+                    price: double.tryParse(_priceController.text) ??
+                        _selectedProduct!.price,
+                    paymentMethod: _paymentMethod ?? 'Contado',
+                    financingType: _financingType,
+                    delivery: _deliveryController.text.isNotEmpty
+                        ? double.parse(_deliveryController.text)
+                        : 0,
+                    paymentFrequency: _paymentFrequency,
+                    numberOfInstallments:
+                        _numberOfInstallmentsController.text.isNotEmpty
+                            ? int.parse(_numberOfInstallmentsController.text)
+                            : null,
+                    hasReinforcements: _hasReinforcements,
+                    reinforcementFrequency: _reinforcementFrequency,
+                    numberOfReinforcements:
+                        _numberOfReinforcementsController.text.isNotEmpty
+                            ? int.parse(_numberOfReinforcementsController.text)
+                            : null,
+                    reinforcementAmount:
+                        _reinforcementAmountController.text.isNotEmpty
+                            ? double.parse(_reinforcementAmountController.text)
+                            : null,
+                    reinforcementMonth: _reinforcementMonth,
+                    validityOffer: _validityOfferController.text.trim(),
+                    benefits: _benefitsController.text.trim(),
+                  );
+
+                  if (budgetProvider.error != null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(budgetProvider.error!)),
+                    );
+                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                  }
+
+                  await budgetProvider.createBudget();
+                  if (budgetProvider.error != null) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(budgetProvider.error!)),
+                    );
+                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                  }
+
+                  await budgetProvider.saveAndSharePdf(context);
+                  if (!context.mounted) return; // Check after async call
+                  if (budgetProvider.error != null) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       SnackBar(content: Text(budgetProvider.error!)),
+                     );
+                  } else {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(
+                           content: Text('Presupuesto generado y guardado')),
+                     );
+                  }
+                } finally {
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Dismiss the dialog
+                  }
+                  setState(() {
+                    _isLoading = false;
+                  });
+                }
               },
             ),
           ],
