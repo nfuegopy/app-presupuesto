@@ -29,8 +29,6 @@ class AmortizationCalculator {
     }
 
     final now = DateTime.now();
-    int currentMonthIndex = now.month - 1;
-    int currentYear = now.year;
 
     const months = [
       'Enero',
@@ -88,8 +86,40 @@ class AmortizationCalculator {
       }
     }
 
-    int monthIndex = currentMonthIndex + 1;
+    int initialMonthIndexValue; // This will be the 0-indexed month for the first installment.
+    int currentActualMonthZeroIndexed = now.month - 1; // e.g., May (5) -> 4
+
+    switch (paymentFrequency) {
+      case 'Trimestral':
+        initialMonthIndexValue = currentActualMonthZeroIndexed + 3;
+        break;
+      case 'Semestral':
+        initialMonthIndexValue = currentActualMonthZeroIndexed + 6;
+        break;
+      case 'Mensual':
+      default:
+        initialMonthIndexValue = currentActualMonthZeroIndexed + 1;
+        break;
+    }
+
+    int monthIndex = initialMonthIndexValue; // Initialize monthIndex for the first installment.
+
     for (int i = 1; i <= numberOfInstallments; i++) {
+      // If this is NOT the first installment (i > 1), then advance monthIndex based on the previous one.
+      if (i > 1) {
+        switch (paymentFrequency) {
+          case 'Mensual':
+            monthIndex++;
+            break;
+          case 'Trimestral':
+            monthIndex += 3;
+            break;
+          case 'Semestral':
+            monthIndex += 6;
+            break;
+        }
+      }
+
       double interest = remainingCapital * periodicRate;
       double principal = fixedMonthlyPayment - interest;
       remainingCapital -= principal;
@@ -122,10 +152,13 @@ class AmortizationCalculator {
       }
 
       String monthName = months[monthIndex % 12];
+      // Potentially, also calculate and add 'year' to the schedule map if needed:
+      // int installmentYear = now.year + (monthIndex ~/ 12);
 
       schedule.add({
         'cuota': i,
         'month': monthName,
+        // 'year': installmentYear, // Uncomment if year is needed
         'capital': principal,
         'intereses': interest,
         'pago_total': fixedMonthlyPayment + reinforcement,
@@ -133,17 +166,7 @@ class AmortizationCalculator {
         'valor_descontado': discountedValue,
       });
 
-      switch (paymentFrequency) {
-        case 'Mensual':
-          monthIndex++;
-          break;
-        case 'Trimestral':
-          monthIndex += 3;
-          break;
-        case 'Semestral':
-          monthIndex += 6;
-          break;
-      }
+      // OLD switch block for incrementing monthIndex at the END of the loop is REMOVED.
     }
 
     // Agregar cálculo de seguro y gastos administrativos
