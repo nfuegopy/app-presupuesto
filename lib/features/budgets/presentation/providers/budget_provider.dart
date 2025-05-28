@@ -100,6 +100,11 @@ class BudgetProvider with ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (telefono == null || telefono.isEmpty) {
+      _error = 'El número de teléfono es obligatorio.';
+      notifyListeners();
+      return;
+    }
     _client = Client(
       razonSocial: razonSocial,
       ruc: ruc,
@@ -264,23 +269,73 @@ class BudgetProvider with ChangeNotifier {
     try {
       if (_selectedClientId != null) {
         _clientId = _selectedClientId;
+        // If a client was selected, update their information if it changed
+        final clientDocRef = FirebaseFirestore.instance.collection('clients').doc(_clientId);
+        final clientSnapshot = await clientDocRef.get();
+        if (clientSnapshot.exists) {
+          final existingClientData = clientSnapshot.data() as Map<String, dynamic>;
+          final updatedClientModel = ClientModel(
+            id: _clientId!,
+            razonSocial: _client!.razonSocial, // Use form data
+            ruc: _client!.ruc, // Use form data
+            email: _client!.email, // Use form data
+            telefono: _client!.telefono, // Use form data
+            ciudad: _client!.ciudad, // Use form data
+            departamento: _client!.departamento, // Use form data
+            createdBy: existingClientData['createdBy'], // Preserve original creator
+          );
+          await clientDocRef.update(updatedClientModel.toMap());
+        }
       } else {
-        final clientId = const Uuid().v4();
-        final clientModel = ClientModel(
-          id: clientId,
-          razonSocial: _client!.razonSocial,
-          ruc: _client!.ruc,
-          email: _client!.email,
-          telefono: _client!.telefono,
-          ciudad: _client!.ciudad,
-          departamento: _client!.departamento,
-          createdBy: user.uid,
-        );
-        await FirebaseFirestore.instance
+        // No client selected, check if RUC exists
+        final rucQuery = await FirebaseFirestore.instance
             .collection('clients')
-            .doc(clientId)
-            .set(clientModel.toMap());
-        _clientId = clientId;
+            .where('ruc', isEqualTo: _client!.ruc)
+            .limit(1)
+            .get();
+
+        if (rucQuery.docs.isNotEmpty) {
+          // Client with this RUC already exists
+          final existingClientDoc = rucQuery.docs.first;
+          _clientId = existingClientDoc.id;
+          final existingClientData = existingClientDoc.data();
+
+          // Update existing client with potentially new details from the form
+          final updatedClientModel = ClientModel(
+            id: _clientId!,
+            razonSocial: _client!.razonSocial, // Form data
+            ruc: _client!.ruc, // Form data (should be same)
+            email: _client!.email, // Form data
+            telefono: _client!.telefono, // Form data
+            ciudad: _client!.ciudad, // Form data
+            departamento: _client!.departamento, // Form data
+            createdBy: existingClientData['createdBy'], // Preserve original creator
+          );
+          await FirebaseFirestore.instance
+              .collection('clients')
+              .doc(_clientId)
+              .update(updatedClientModel.toMap());
+          _error = null;
+          // notifyListeners(); // Notifying at the end of the method
+        } else {
+          // No client with this RUC, create a new one
+          final newClientId = const Uuid().v4();
+          final clientModel = ClientModel(
+            id: newClientId,
+            razonSocial: _client!.razonSocial,
+            ruc: _client!.ruc,
+            email: _client!.email,
+            telefono: _client!.telefono,
+            ciudad: _client!.ciudad,
+            departamento: _client!.departamento,
+            createdBy: user.uid, // UID of the current user
+          );
+          await FirebaseFirestore.instance
+              .collection('clients')
+              .doc(newClientId)
+              .set(clientModel.toMap());
+          _clientId = newClientId;
+        }
       }
 
       final budget = Budget(

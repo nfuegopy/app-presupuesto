@@ -18,67 +18,77 @@ class ClientSearchSelect extends StatefulWidget {
 }
 
 class _ClientSearchSelectState extends State<ClientSearchSelect> {
-  final TextEditingController _searchController = TextEditingController();
-  List<ClientModel> _filteredClients = [];
   ClientModel? _selectedClient;
 
   @override
-  void initState() {
-    super.initState();
-    _filteredClients = widget.clients;
-    _searchController.addListener(_onSearchChanged);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _onSearchChanged() {
-    final query = _searchController.text.trim().toLowerCase();
-    widget.onSearchChanged(query);
-    setState(() {
-      _filteredClients = widget.clients.where((client) {
-        final razonSocial = client.razonSocial.toLowerCase();
-        final ruc = client.ruc.toLowerCase();
-        return razonSocial.contains(query) || ruc.contains(query);
-      }).toList();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _searchController,
+    return Autocomplete<ClientModel>(
+      displayStringForOption: (ClientModel option) =>
+          '${option.razonSocial} (${option.ruc})',
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        widget.onSearchChanged(textEditingValue.text);
+        if (textEditingValue.text.isEmpty) {
+          return const Iterable<ClientModel>.empty();
+        }
+        return widget.clients.where((ClientModel client) {
+          final query = textEditingValue.text.toLowerCase();
+          final razonSocial = client.razonSocial.toLowerCase();
+          final ruc = client.ruc.toLowerCase();
+          return razonSocial.contains(query) || ruc.contains(query);
+        });
+      },
+      onSelected: (ClientModel selection) {
+        setState(() {
+          _selectedClient = selection;
+        });
+        widget.onClientSelected(selection);
+      },
+      fieldViewBuilder: (BuildContext context,
+          TextEditingController textEditingController,
+          FocusNode focusNode,
+          VoidCallback onFieldSubmitted) {
+        return TextField(
+          controller: textEditingController,
+          focusNode: focusNode,
           decoration: const InputDecoration(
             labelText: 'Buscar Cliente (Razón Social o RUC)',
             border: OutlineInputBorder(),
             suffixIcon: Icon(Icons.search),
           ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButton<ClientModel>(
-          value: _selectedClient,
-          hint: const Text('Seleccionar Cliente'),
-          isExpanded: true,
-          items: _filteredClients.map((client) {
-            return DropdownMenuItem<ClientModel>(
-              value: client,
-              child: Text('${client.razonSocial} (${client.ruc})'),
-            );
-          }).toList(),
-          onChanged: (client) {
-            setState(() {
-              _selectedClient = client;
-            });
-            widget.onClientSelected(client);
+          onSubmitted: (String value) {
+            onFieldSubmitted();
           },
-        ),
-      ],
+        );
+      },
+      optionsViewBuilder: (BuildContext context,
+          AutocompleteOnSelected<ClientModel> onSelected,
+          Iterable<ClientModel> options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4.0,
+            child: SizedBox(
+              height: 200.0, // Adjust height as needed
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: options.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final ClientModel option = options.elementAt(index);
+                  return InkWell(
+                    onTap: () {
+                      onSelected(option);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text('${option.razonSocial} (${option.ruc})'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
