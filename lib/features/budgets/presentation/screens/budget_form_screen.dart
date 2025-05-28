@@ -612,16 +612,18 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     selectedClientId: null,
                   );
                 } else if (_selectedClient != null) {
+                  // Client was selected, and potentially fields were edited
                   budgetProvider.updateClient(
-                    razonSocial: _selectedClient!.razonSocial,
-                    ruc: _selectedClient!.ruc,
-                    email: _selectedClient!.email,
-                    telefono: _selectedClient!.telefono,
-                    ciudad: _selectedClient!.ciudad,
-                    departamento: _selectedClient!.departamento,
-                    selectedClientId: _selectedClient!.id,
+                    razonSocial: _razonSocialController.text.trim(), // Use controller data
+                    ruc: _rucController.text.trim(),              // Use controller data
+                    email: _emailController.text.trim(),            // Use controller data
+                    telefono: _telefonoController.text.trim(),        // Use controller data
+                    ciudad: _ciudad,                                // Use state variable for dropdown
+                    departamento: _departamento,                    // Use state variable for dropdown
+                    selectedClientId: _selectedClient!.id,          // Keep the selected ID
                   );
                 } else {
+                  // No client selected, and not a new client (e.g., fields typed directly)
                   budgetProvider.updateClient(
                     razonSocial: _razonSocialController.text.trim(),
                     ruc: _rucController.text.trim(),
