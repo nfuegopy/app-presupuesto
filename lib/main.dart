@@ -17,6 +17,7 @@ import 'features/budgets/data/repositories/budget_repository_impl.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart'; // Añadir esta importación
 import 'features/cotirzacion/data/repositories/cotizacion_repository_impl.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import FirebaseAuth
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +44,8 @@ void main() async {
     prefs: Future.value(sharedPreferences),
   );
   final productRepository = ProductRepositoryImpl();
-  final budgetRepository = BudgetRepositoryImpl(FirebaseFirestore.instance);
+  // Updated BudgetRepositoryImpl instantiation
+  final budgetRepository = BudgetRepositoryImpl(FirebaseFirestore.instance, FirebaseAuth.instance);
   final signInUseCase = SignIn(authRepository);
   final createUserUseCase = CreateUser(authRepository);
   final getProductsUseCase = GetProducts(productRepository);
@@ -63,7 +65,10 @@ void main() async {
           create: (_) => ProductProvider(getProductsUseCase),
         ),
         ChangeNotifierProvider(
-          create: (_) => BudgetProvider(createBudget: createBudgetUseCase),
+          create: (_) => BudgetProvider(
+            createBudget: createBudgetUseCase,
+            budgetRepository: budgetRepository, // Pass BudgetRepository instance
+          ),
         ),
       ],
       child: const MyApp(),

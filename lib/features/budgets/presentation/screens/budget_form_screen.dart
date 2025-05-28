@@ -7,9 +7,10 @@ import '../../../auth/presentation/widgets/custom_dropdown.dart';
 import '../widgets/custom_enabled_dropdown.dart';
 import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
-import '../widgets/custom_tags_input_field.dart';
-import '../widgets/client_search_select.dart';
-import '../../data/models/client_model.dart';
+// Placeholder for ClientModel, assuming it's defined in UnifiedClientSearchField or accessible globally
+// If ClientModel from data/models is complete, use that.
+// import '../../data/models/client_model.dart';
+import '../widgets/unified_client_search_field.dart'; // Import the new widget
 import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
 import 'dart:convert';
@@ -37,8 +38,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _validityOfferController =
       TextEditingController(text: 'Valido 15 dias');
   final _benefitsController = TextEditingController();
-  String _searchQuery = '';
-  bool _isNewClient = false;
+  // String _searchQuery = ''; // Managed by UnifiedClientSearchField
+  bool _isNewClient = true; // Default to new client, will change on selection
   ClientModel? _selectedClient;
 
   String? _ciudad;
@@ -51,6 +52,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   String? _reinforcementFrequency;
   String? _reinforcementMonth;
 
+  final _formKey = GlobalKey<FormState>(); // Added form key
   List<ParaguayLocation> _locations = [];
   List<String> _departamentos = [];
   List<String> _ciudades = [];
@@ -186,10 +188,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
           16.0,
           16.0 + bottomPadding + 16.0,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
+        child: Form( // Added Form widget
+          key: _formKey, // Assign form key
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
               'Datos de la Máquina',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontSize: 18,
@@ -244,93 +248,85 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Checkbox(
-                  value: _isNewClient,
-                  onChanged: (value) {
-                    setState(() {
-                      _isNewClient = value ?? false;
-                      _selectedClient = null;
-                      if (_isNewClient) {
-                        _razonSocialController.clear();
-                        _rucController.clear();
-                        _emailController.clear();
-                        _telefonoController.clear();
-                        _ciudad = null;
-                        _departamento = null;
-                        _updateCiudades(null);
-                      }
-                    });
-                  },
-                ),
-                const Text('Cliente Nuevo'),
-              ],
+            UnifiedClientSearchField(
+              suggestions: budgetProvider.clients, // Provide all clients for now
+              onClientSelected: (client) {
+                setState(() {
+                  _selectedClient = client;
+                  _isNewClient = false; // Client is selected, not new
+                  _razonSocialController.text = client.razonSocial;
+                  _rucController.text = client.ruc;
+                  _emailController.text = client.email ?? '';
+                  _telefonoController.text = client.telefono ?? '';
+                  _departamento = client.departamento;
+                  _ciudad = client.ciudad; // Set ciudad first
+                  _updateCiudades(client.departamento); // Then update based on departamento
+                                                      // This ensures ciudad is pre-selected if available
+
+                  // Update provider if needed, or do it on save
+                  budgetProvider.updateClient(
+                    razonSocial: client.razonSocial,
+                    ruc: client.ruc,
+                    email: client.email,
+                    telefono: client.telefono,
+                    ciudad: client.ciudad,
+                    departamento: client.departamento,
+                    selectedClientId: client.id,
+                  );
+                });
+              },
+              onNewClientTyped: (value) {
+                // This callback means the user is typing, potentially a new client
+                // For now, we'll use this to clear _selectedClient if text changes
+                // and doesn't result in a selection.
+                // More sophisticated logic can be added to parse RUC from value.
+                setState(() {
+                   // If the text is cleared or changed significantly without a selection,
+                   // assume it's a new client entry.
+                  if (_selectedClient != null && value != '${_selectedClient!.razonSocial} (${_selectedClient!.ruc})') {
+                    _selectedClient = null; // Clear selection if text diverges
+                     _isNewClient = true;
+                  } else if (_selectedClient == null) {
+                    _isNewClient = true;
+                  }
+                  // The UnifiedClientSearchField's internal controller handles the text.
+                  // We need to decide how this text maps to _razonSocialController and _rucController
+                  // For now, let's assume the user types "Razón Social (RUC)" or just "Razón Social"
+                  // If they type "Razón Social (RUC)", we could parse it.
+                  // For simplicity, let's assume the typed value is Razón Social for new clients.
+                  // RUC will need to be entered in its own field if not parsed.
+                  // This part needs refinement based on UX decisions.
+                  // For now, let's clear controllers if it becomes a new client.
+                  if(_isNewClient) {
+                    // _razonSocialController.text = value; // The UCSF handles its own text.
+                                                          // We will read from it or _selectedClient on save.
+                    // _rucController.clear(); // Clear RUC if it's a new client being typed
+                  }
+                });
+              },
+              // initialValue: _selectedClient != null ? '${_selectedClient!.razonSocial} (${_selectedClient!.ruc})' : _razonSocialController.text,
             ),
             const SizedBox(height: 16),
-            if (!_isNewClient)
-              ClientSearchSelect(
-                clients: budgetProvider.clients,
-                onClientSelected: (client) {
-                  setState(() {
-                    _selectedClient = client;
-                    if (client != null) {
-                      _razonSocialController.text = client.razonSocial;
-                      _rucController.text = client.ruc;
-                      _emailController.text = client.email ?? '';
-                      _telefonoController.text = client.telefono ?? '';
-                      _ciudad = client.ciudad;
-                      _departamento = client.departamento;
-                      _updateCiudades(_departamento); // Cargar ciudades
-                      budgetProvider.updateClient(
-                        razonSocial: client.razonSocial,
-                        ruc: client.ruc,
-                        email: client.email,
-                        telefono: client.telefono,
-                        ciudad: client.ciudad,
-                        departamento: client.departamento,
-                        selectedClientId: client.id,
-                      );
-                    } else {
-                      _razonSocialController.clear();
-                      _rucController.clear();
-                      _emailController.clear();
-                      _telefonoController.clear();
-                      _ciudad = null;
-                      _departamento = null;
-                      _updateCiudades(null);
-                      budgetProvider.updateClient(
-                        razonSocial: '',
-                        ruc: '',
-                        email: null,
-                        telefono: null,
-                        ciudad: null,
-                        departamento: null,
-                        selectedClientId: null,
-                      );
-                    }
-                  });
-                },
-                onSearchChanged: (query) {
-                  _searchQuery = query;
-                },
-              ),
-            if (_isNewClient) ...[
-              CustomTextField(
+            // RUC and Razon Social controllers are now primarily driven by UnifiedClientSearchField
+            // We might still want to display them, or make them editable if _isNewClient is true
+            // For now, let's keep them, but their role changes.
+            // The UnifiedClientSearchField should populate these.
+            CustomTextField(
                 controller: _razonSocialController,
-                label: 'Razón Social',
+                label: 'Razón Social (Autocompletado o Nuevo)',
                 isRequired: true,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _rucController,
-                label: 'RUC',
-                isRequired: true,
-              ),
-            ],
+                // readOnly: !_isNewClient && _selectedClient != null, // Make read-only if a client is selected
+            ),
             const SizedBox(height: 16),
             CustomTextField(
-              controller: _emailController,
+                controller: _rucController,
+                label: 'RUC (Autocompletado o Nuevo)',
+                isRequired: true,
+                // readOnly: !_isNewClient && _selectedClient != null, // Make read-only if a client is selected
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _emailController, // This will be populated by onClientSelected
               label: 'E-mail',
               keyboardType: TextInputType.emailAddress,
             ),
@@ -339,6 +335,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               controller: _telefonoController,
               label: 'Teléfono',
               keyboardType: TextInputType.phone,
+              isRequired: true, // Set isRequired to true
             ),
             const SizedBox(height: 16),
             CustomEnabledDropdown(
@@ -556,6 +553,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
+                // Validate form
+                if (!_formKey.currentState!.validate()) {
+                  return; // If form is not valid, do not proceed
+                }
+
                 if (_hasReinforcements == null && _paymentFrequency != null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -601,37 +603,30 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   }
                 }
 
-                if (_isNewClient) {
+                // Determine if it's a new client based on _selectedClient being null
+                // The _isNewClient flag is helpful but _selectedClient is the source of truth here.
+                if (_selectedClient == null) { // Implies new client
                   budgetProvider.updateClient(
-                    razonSocial: _razonSocialController.text.trim(),
-                    ruc: _rucController.text.trim(),
+                    razonSocial: _razonSocialController.text.trim(), // Values from the text fields
+                    ruc: _rucController.text.trim(), // Values from the text fields
                     email: _emailController.text.trim(),
                     telefono: _telefonoController.text.trim(),
                     ciudad: _ciudad,
                     departamento: _departamento,
-                    selectedClientId: null,
+                    selectedClientId: null, // This will be updated/created
                   );
-                } else if (_selectedClient != null) {
+                } else { // Existing client selected
                   budgetProvider.updateClient(
                     razonSocial: _selectedClient!.razonSocial,
                     ruc: _selectedClient!.ruc,
-                    email: _selectedClient!.email,
-                    telefono: _selectedClient!.telefono,
-                    ciudad: _selectedClient!.ciudad,
-                    departamento: _selectedClient!.departamento,
+                    email: _emailController.text.trim(), // Allow editing email
+                    telefono: _telefonoController.text.trim(), // Allow editing phone
+                    ciudad: _ciudad, // Allow editing location
+                    departamento: _departamento, // Allow editing location
                     selectedClientId: _selectedClient!.id,
                   );
-                } else {
-                  budgetProvider.updateClient(
-                    razonSocial: _razonSocialController.text.trim(),
-                    ruc: _rucController.text.trim(),
-                    email: _emailController.text.trim(),
-                    telefono: _telefonoController.text.trim(),
-                    ciudad: _ciudad,
-                    departamento: _departamento,
-                    selectedClientId: null,
-                  );
                 }
+                // Removed the third 'else' block as it's redundant with _selectedClient == null
 
                 if (budgetProvider.error != null) {
                   if (!context.mounted) return;

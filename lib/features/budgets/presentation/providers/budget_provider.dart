@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/client.dart';
+import '../../domain/repositories/budget_repository.dart'; // Added for repository access
 import '../../domain/usecases/create_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../../data/models/client_model.dart';
@@ -33,6 +34,8 @@ class BudgetProvider with ChangeNotifier {
   String? _benefits;
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
+  List<ClientModel> clientSearchResults = []; // Added for search results
+  bool isLoadingSuggestions = false; // Added for loading state
 
   Client? get client => _client;
   String? get clientId => _clientId;
@@ -56,13 +59,36 @@ class BudgetProvider with ChangeNotifier {
   List<ClientModel> get clients => _clients;
 
   final CreateBudget _createBudget;
+  final BudgetRepository _budgetRepository; // Added repository instance
   final PdfGenerator _pdfGenerator;
 
   BudgetProvider({
     required CreateBudget createBudget,
+    required BudgetRepository budgetRepository, // Added to constructor
     PdfGenerator? pdfGenerator,
   })  : _createBudget = createBudget,
+        _budgetRepository = budgetRepository, // Initialize repository
         _pdfGenerator = pdfGenerator ?? PdfGenerator();
+
+  // Method to fetch client suggestions
+  Future<void> fetchClientSuggestions(String query) async {
+    if (query.isEmpty) {
+      clientSearchResults = [];
+      notifyListeners();
+      return;
+    }
+    isLoadingSuggestions = true;
+    notifyListeners();
+    try {
+      clientSearchResults = await _budgetRepository.searchClients(query);
+    } catch (e) {
+      _error = 'Error buscando clientes: $e';
+      clientSearchResults = [];
+    } finally {
+      isLoadingSuggestions = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> loadClientsByVendor() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -76,8 +102,15 @@ class BudgetProvider with ChangeNotifier {
           .collection('clients')
           .where('createdBy', isEqualTo: user.uid)
           .get();
+      // This method might now use the repository if getClientsByVendor is preferred
+      // For now, keeping original implementation, but could be refactored to use:
+      // _clients = await _budgetRepository.getClientsByVendor();
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('clients')
+          .where('createdBy', isEqualTo: user.uid)
+          .get();
       _clients = querySnapshot.docs
-          .map((doc) => ClientModel.fromMap(doc.data(), doc.id))
+          .map((doc) => ClientModel.fromFirestore(doc.data(), doc.id)) // Assuming fromFirestore is correct
           .toList();
       _error = null;
     } catch (e) {
@@ -265,22 +298,37 @@ class BudgetProvider with ChangeNotifier {
       if (_selectedClientId != null) {
         _clientId = _selectedClientId;
       } else {
-        final clientId = const Uuid().v4();
+        // This is a new client, check for RUC duplication
+        if (_client == null || _client!.ruc.trim().isEmpty) {
+          _error = 'Error: El RUC del cliente no puede estar vacío.';
+          notifyListeners();
+          return;
+        }
+
+        final existingClientWithRUC = await _budgetRepository.getClientByRUC(_client!.ruc.trim());
+        if (existingClientWithRUC != null) {
+          _error = 'Error: Ya existe un cliente con el RUC ${_client!.ruc.trim()}. No se puede crear un cliente duplicado.';
+          notifyListeners();
+          return;
+        }
+
+        // Proceed with new client creation
+        final newClientId = const Uuid().v4();
         final clientModel = ClientModel(
-          id: clientId,
+          id: newClientId,
           razonSocial: _client!.razonSocial,
-          ruc: _client!.ruc,
+          ruc: _client!.ruc.trim(), // Use trimmed RUC
           email: _client!.email,
           telefono: _client!.telefono,
           ciudad: _client!.ciudad,
           departamento: _client!.departamento,
-          createdBy: user.uid,
+          createdBy: user.uid, // Ensure createdBy is set for the new client
         );
         await FirebaseFirestore.instance
             .collection('clients')
-            .doc(clientId)
+            .doc(newClientId) // Use newClientId
             .set(clientModel.toMap());
-        _clientId = clientId;
+        _clientId = newClientId; // Assign the new client's ID
       }
 
       final budget = Budget(
@@ -321,7 +369,7 @@ class BudgetProvider with ChangeNotifier {
           .doc(clientId)
           .get();
       if (doc.exists) {
-        return ClientModel.fromMap(doc.data()!, clientId);
+        return ClientModel.fromFirestore(doc.data()!, clientId); // Assuming fromFirestore
       }
       return null;
     } catch (e) {
@@ -396,6 +444,8 @@ class BudgetProvider with ChangeNotifier {
     _amortizationSchedule = null;
     _error = null;
     _clients = [];
+    clientSearchResults = []; // Clear search results as well
+    isLoadingSuggestions = false;
     notifyListeners();
   }
 }

@@ -6,9 +6,10 @@ class CustomTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final bool obscureText;
   final bool isRequired;
-  final String? errorText;
+  // final String? errorText; // errorText will be handled by the validator
   final IconData? prefixIcon;
   final int? maxLines;
+  final String? Function(String?)? validator; // Added validator property
 
   const CustomTextField({
     super.key,
@@ -17,14 +18,15 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
     this.isRequired = false,
-    this.errorText,
+    // this.errorText,
     this.prefixIcon,
     this.maxLines = 1,
+    this.validator, // Added to constructor
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField( // Changed from TextField to TextFormField
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
@@ -59,14 +61,19 @@ class CustomTextField extends StatelessWidget {
         ),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surface.withOpacity(0.8),
-        errorText: errorText ??
-            (isRequired && controller.text.isEmpty
-                ? 'Este campo es obligatorio'
-                : null),
+        // errorText: errorText, // Handled by validator
         errorStyle: TextStyle(color: Theme.of(context).colorScheme.error),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
+      validator: validator ?? // Use provided validator or default if isRequired
+          (value) {
+            if (isRequired && (value == null || value.trim().isEmpty)) {
+              return 'Este campo es obligatorio';
+            }
+            return null;
+          },
+      autovalidateMode: AutovalidateMode.onUserInteraction, // Optional: validate as user types
     );
   }
 }

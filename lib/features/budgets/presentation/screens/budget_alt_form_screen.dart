@@ -8,7 +8,8 @@ import '../../../auth/presentation/widgets/custom_dropdown.dart';
 import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
-import '../widgets/client_search_select.dart';
+// import '../widgets/client_search_select.dart'; // Removed
+import '../widgets/unified_client_search_field.dart'; // Added
 import '../../data/models/client_model.dart';
 import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
@@ -36,8 +37,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   final _validityOfferController =
       TextEditingController(text: 'Valido 15 dias');
   final _benefitsController = TextEditingController();
-  String _searchQuery = '';
-  bool _isNewClient = false;
+  // String _searchQuery = ''; // To be managed by or within UnifiedClientSearchField
+  bool _isNewClient = true; // Default to new client, will change on selection
   ClientModel? _selectedClient;
 
   String? _ciudad;
@@ -51,6 +52,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   String? _reinforcementMonth;
   Product? _selectedProduct;
 
+  final _formKey = GlobalKey<FormState>(); // Added form key
   List<ParaguayLocation> _locations = [];
   List<String> _departamentos = [];
   List<String> _ciudades = [];
@@ -184,10 +186,12 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
           16.0,
           16.0 + bottomPadding + 16.0,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
+        child: Form( // Added Form widget
+          key: _formKey, // Assign form key
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
               'Seleccionar Producto',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontSize: 18,
@@ -280,93 +284,76 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Checkbox(
-                  value: _isNewClient,
-                  onChanged: (value) {
-                    setState(() {
-                      _isNewClient = value ?? false;
-                      _selectedClient = null;
-                      if (_isNewClient) {
-                        _razonSocialController.clear();
+            UnifiedClientSearchField(
+              suggestions: budgetProvider.clients,
+              onClientSelected: (client) {
+                setState(() {
+                  _selectedClient = client;
+                  _isNewClient = false;
+                  _razonSocialController.text = client.razonSocial;
+                  _rucController.text = client.ruc;
+                  _emailController.text = client.email ?? '';
+                  _telefonoController.text = client.telefono ?? '';
+                  _departamento = client.departamento;
+                  _ciudad = client.ciudad;
+                  _updateCiudades(client.departamento);
+
+                  budgetProvider.updateClient(
+                    razonSocial: client.razonSocial,
+                    ruc: client.ruc,
+                    email: client.email,
+                    telefono: client.telefono,
+                    ciudad: client.ciudad,
+                    departamento: client.departamento,
+                    selectedClientId: client.id,
+                  );
+                });
+              },
+              onNewClientTyped: (value) {
+                setState(() {
+                  if (_selectedClient != null && value != '${_selectedClient!.razonSocial} (${_selectedClient!.ruc})') {
+                    _selectedClient = null;
+                    _isNewClient = true;
+                    _razonSocialController.text = value;
+                    _rucController.clear();
+                    _emailController.clear();
+                    _telefonoController.clear();
+                    _departamento = null;
+                    _ciudad = null;
+                    _updateCiudades(null);
+                  } else if (_selectedClient == null) {
+                    _isNewClient = true;
+                    _razonSocialController.text = value;
+                     if (value.isEmpty) { // Reset other fields if main field is cleared
                         _rucController.clear();
                         _emailController.clear();
                         _telefonoController.clear();
-                        _ciudad = null;
                         _departamento = null;
+                        _ciudad = null;
                         _updateCiudades(null);
-                      }
-                    });
-                  },
-                ),
-                const Text('Cliente Nuevo'),
-              ],
+                    }
+                  }
+                });
+              },
+              initialValue: _selectedClient != null
+                  ? '${_selectedClient!.razonSocial} (${_selectedClient!.ruc})'
+                  : _razonSocialController.text,
             ),
             const SizedBox(height: 16),
-            if (!_isNewClient)
-              ClientSearchSelect(
-                clients: budgetProvider.clients,
-                onClientSelected: (client) {
-                  setState(() {
-                    _selectedClient = client;
-                    if (client != null) {
-                      _razonSocialController.text = client.razonSocial;
-                      _rucController.text = client.ruc;
-                      _emailController.text = client.email ?? '';
-                      _telefonoController.text = client.telefono ?? '';
-                      _ciudad = client.ciudad;
-                      _departamento = client.departamento;
-                      _updateCiudades(_departamento); // Cargar ciudades
-                      budgetProvider.updateClient(
-                        razonSocial: client.razonSocial,
-                        ruc: client.ruc,
-                        email: client.email,
-                        telefono: client.telefono,
-                        ciudad: client.ciudad,
-                        departamento: client.departamento,
-                        selectedClientId: client.id,
-                      );
-                    } else {
-                      _razonSocialController.clear();
-                      _rucController.clear();
-                      _emailController.clear();
-                      _telefonoController.clear();
-                      _ciudad = null;
-                      _departamento = null;
-                      _updateCiudades(null);
-                      budgetProvider.updateClient(
-                        razonSocial: '',
-                        ruc: '',
-                        email: null,
-                        telefono: null,
-                        ciudad: null,
-                        departamento: null,
-                        selectedClientId: null,
-                      );
-                    }
-                  });
-                },
-                onSearchChanged: (query) {
-                  _searchQuery = query;
-                },
-              ),
-            if (_isNewClient) ...[
-              CustomTextField(
-                controller: _razonSocialController,
-                label: 'Razón Social',
-                isRequired: true,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _rucController,
-                label: 'RUC',
-                isRequired: true,
-              ),
-            ],
+            CustomTextField(
+              controller: _razonSocialController,
+              label: 'Razón Social (Autocompletado o Nuevo)',
+              isRequired: true,
+            ),
             const SizedBox(height: 16),
             CustomTextField(
-              controller: _emailController,
+              controller: _rucController,
+              label: 'RUC (Autocompletado o Nuevo)',
+              isRequired: true,
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _emailController, // Populated by onClientSelected or manual
               label: 'E-mail',
               keyboardType: TextInputType.emailAddress,
             ),
@@ -375,6 +362,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
               controller: _telefonoController,
               label: 'Teléfono',
               keyboardType: TextInputType.phone,
+              isRequired: true, // Set isRequired to true
             ),
             const SizedBox(height: 16),
             CustomEnabledDropdown(
@@ -592,6 +580,11 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
+                // Validate form
+                if (!_formKey.currentState!.validate()) {
+                  return; // If form is not valid, do not proceed
+                }
+
                 if (_selectedProduct == null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -646,37 +639,29 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   }
                 }
 
-                if (_isNewClient) {
+                // Determine if it's a new client based on _selectedClient being null
+                if (_selectedClient == null) { // Implies new client
                   budgetProvider.updateClient(
-                    razonSocial: _razonSocialController.text.trim(),
-                    ruc: _rucController.text.trim(),
+                    razonSocial: _razonSocialController.text.trim(), // Values from the text fields
+                    ruc: _rucController.text.trim(), // Values from the text fields
                     email: _emailController.text.trim(),
                     telefono: _telefonoController.text.trim(),
                     ciudad: _ciudad,
                     departamento: _departamento,
-                    selectedClientId: null,
+                    selectedClientId: null, // This will be updated/created
                   );
-                } else if (_selectedClient != null) {
+                } else { // Existing client selected
                   budgetProvider.updateClient(
                     razonSocial: _selectedClient!.razonSocial,
                     ruc: _selectedClient!.ruc,
-                    email: _selectedClient!.email,
-                    telefono: _selectedClient!.telefono,
-                    ciudad: _selectedClient!.ciudad,
-                    departamento: _selectedClient!.departamento,
+                    email: _emailController.text.trim(), // Allow editing email
+                    telefono: _telefonoController.text.trim(), // Allow editing phone
+                    ciudad: _ciudad, // Allow editing location
+                    departamento: _departamento, // Allow editing location
                     selectedClientId: _selectedClient!.id,
                   );
-                } else {
-                  budgetProvider.updateClient(
-                    razonSocial: _razonSocialController.text.trim(),
-                    ruc: _rucController.text.trim(),
-                    email: _emailController.text.trim(),
-                    telefono: _telefonoController.text.trim(),
-                    ciudad: _ciudad,
-                    departamento: _departamento,
-                    selectedClientId: null,
-                  );
                 }
+                // Removed the third 'else' block as it's redundant with _selectedClient == null
 
                 if (budgetProvider.error != null) {
                   if (!context.mounted) return;
