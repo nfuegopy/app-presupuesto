@@ -211,6 +211,7 @@ class BudgetProvider with ChangeNotifier {
             : null,
         reinforcementMonth: reinforcementMonth,
         paymentFrequency: paymentFrequency ?? 'Mensual',
+        annualNominalRate: 0.09,
       );
     } else {
       _amortizationSchedule = null;
