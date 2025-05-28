@@ -65,7 +65,7 @@ class AmortizationCalculator {
       }
 
       int cuota = 1;
-      int monthIndex = currentMonthIndex + 1;
+      int monthIndex = now.month;
       int yearOffset = 0;
       int reinforcementCount = 0;
       List<int> reinforcementKeys = reinforcements.keys.toList()..sort();
