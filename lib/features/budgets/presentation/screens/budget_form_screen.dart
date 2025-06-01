@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
@@ -216,10 +217,22 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       'Tipo: ${widget.product.type}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    Text(
-                      'Precio: ${widget.product.price} ${widget.product.currency}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Builder(builder: (context) {
+                      String displayPrice;
+                      final numFormat = NumberFormat("#,##0.00", "de_DE");
+                      String formattedPrice = numFormat.format(widget.product.price);
+                      if (widget.product.currency == "USD") {
+                        displayPrice = "USD $formattedPrice";
+                      } else if (widget.product.currency == "GS") {
+                        displayPrice = "Gs. $formattedPrice";
+                      } else {
+                        displayPrice = "${widget.product.currency} $formattedPrice";
+                      }
+                      return Text(
+                        'Precio: $displayPrice',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      );
+                    }),
                     if (widget.product.imageUrl != null)
                       Image.network(
                         widget.product.imageUrl!,

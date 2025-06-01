@@ -194,19 +194,53 @@ class BudgetProvider with ChangeNotifier {
     _error = null;
 
     if (paymentMethod == 'Financiado' &&
-        numberOfInstallments != null &&
-        delivery != null) {
-      double capital = price - delivery;
-      double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
-      double fixedMonthlyPayment =
-          (capital * monthlyRate * pow(1 + monthlyRate, numberOfInstallments)) /
-              (pow(1 + monthlyRate, numberOfInstallments) - 1);
+        numberOfInstallments != null) { // Removed 'delivery != null' from here
+
+      // Ensure deliveryAmount is 0.0 if delivery is null, otherwise use delivery.
+      double deliveryAmount = delivery ?? 0.0;
+
+      // Specific check for 'Propia' financing type still needs a positive delivery
+      if (financingType == 'Propia' && deliveryAmount <= 0) {
+        _error = 'La entrega es obligatoria y debe ser mayor a 0 para financiación propia.';
+        // Potentially return or set amortizationSchedule to null and notify
+        _amortizationSchedule = null;
+        notifyListeners();
+        return; // Stop further calculation if this condition is met
+      }
+
+      // For other financing types, deliveryAmount can be 0 (for "sin entrega")
+      double capital = price - deliveryAmount;
+
+      // Ensure capital is not negative if deliveryAmount somehow exceeds price
+      if (capital < 0) capital = 0;
+
+      double monthlyRate = currency == 'USD' ? 0.0075 : 0.018;
+
+      // Check if capital is zero, which means fixedMonthlyPayment should also be zero (or handle appropriately)
+      double fixedMonthlyPayment = 0;
+      if (capital > 0) {
+        if (monthlyRate > 0 && numberOfInstallments! > 0) {
+          double ratePow = pow(1 + monthlyRate, numberOfInstallments!).toDouble();
+          if (ratePow == 1) {
+            fixedMonthlyPayment = capital / numberOfInstallments!;
+          } else {
+            fixedMonthlyPayment = (capital * monthlyRate * ratePow) / (ratePow - 1);
+          }
+        } else if (numberOfInstallments! > 0) { // Handles monthlyRate = 0 case
+          fixedMonthlyPayment = capital / numberOfInstallments!;
+        } else { // numberOfInstallments is 0 or less (should not happen based on UI logic)
+          fixedMonthlyPayment = capital;
+        }
+      } else {
+        // If capital is 0 (e.g., full delivery), then fixedMonthlyPayment is 0
+        fixedMonthlyPayment = 0;
+      }
 
       _amortizationSchedule =
           AmortizationCalculator.calculateFrenchAmortization(
         capital: capital,
         monthlyRate: monthlyRate,
-        numberOfInstallments: numberOfInstallments,
+        numberOfInstallments: numberOfInstallments!, // Already checked for null
         fixedMonthlyPayment: fixedMonthlyPayment,
         reinforcements: hasReinforcements == true &&
                 numberOfReinforcements != null &&
@@ -218,9 +252,11 @@ class BudgetProvider with ChangeNotifier {
         paymentFrequency: paymentFrequency ?? 'Mensual',
         annualNominalRate: 0.09,
       );
-    } else {
+    } else if (paymentMethod != 'Financiado') { // If not 'Financiado', clear schedule
       _amortizationSchedule = null;
     }
+    // Removed the else { _amortizationSchedule = null; } that was here before,
+    // as it's now handled by the modified conditions.
 
     notifyListeners();
   }

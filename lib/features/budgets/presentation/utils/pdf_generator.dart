@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import '../../data/models/client_model.dart';
 import '../../../products/domain/entities/product.dart';
 import '../utils/amortization_calculator.dart';
@@ -184,20 +185,32 @@ class PdfGenerator {
               0.0, (sum, item) => sum + (item['pago_total'] as double)) +
           (delivery ?? 0);
 
+      final numFormat = NumberFormat("#,##0.00", "de_DE");
+      String deliveryStr = '-';
+      if (delivery != null && delivery > 0) {
+        String prefix = currency == 'USD' ? 'USD ' : (currency == 'GS' ? 'Gs. ' : '$currency ');
+        deliveryStr = '$prefix${numFormat.format(delivery)}.-';
+      }
+      String monthlyPaymentStr;
+      String prefixMonthly = currency == 'USD' ? 'USD ' : (currency == 'GS' ? 'Gs. ' : '$currency ');
+      monthlyPaymentStr = '$prefixMonthly${numFormat.format(generatedMonthlyPayment)}';
+
+      String reinforcementAmountStr = '-';
+      if (hasReinforcements == true && reinforcementAmount != null) {
+        String prefixReinforcement = currency == 'USD' ? 'USD ' : (currency == 'GS' ? 'Gs. ' : '$currency ');
+        reinforcementAmountStr = '$prefixReinforcement${numFormat.format(reinforcementAmount)}.-';
+      }
+
       financingPlans = [
         [
           planName,
-          delivery != null && delivery > 0
-              ? '$currency ${delivery.toStringAsFixed(2)}.-'
-              : '-',
-          '$currency ${generatedMonthlyPayment.toStringAsFixed(2)}',
+          deliveryStr,
+          monthlyPaymentStr,
           '$numberOfInstallments',
           hasReinforcements == true && numberOfReinforcements != null
               ? '$numberOfReinforcements'
               : '-',
-          hasReinforcements == true && reinforcementAmount != null
-              ? '$currency ${reinforcementAmount.toStringAsFixed(2)}.-'
-              : '-',
+          reinforcementAmountStr,
         ],
       ];
     }
@@ -259,10 +272,15 @@ class PdfGenerator {
             int endIndex = min(startIndex + maxRowsPerColumn, schedule.length);
             for (int i = startIndex; i < endIndex; i++) {
               var installment = schedule[i];
+              final numFormat = NumberFormat("#,##0.00", "de_DE");
+              String totalPagoStr;
+              String prefixPago = currency == 'USD' ? 'USD ' : (currency == 'GS' ? 'Gs. ' : '$currency ');
+              totalPagoStr = '$prefixPago${numFormat.format(installment['pago_total'])}.-';
+
               columnData.add([
                 installment['cuota'].toString(),
                 installment['month'] as String,
-                '$currency ${installment['pago_total'].toStringAsFixed(2)}.-',
+                totalPagoStr,
               ]);
             }
             scheduleColumns.add(columnData);
@@ -296,8 +314,14 @@ class PdfGenerator {
                   width: 400, height: 300, fit: pw.BoxFit.contain),
               pw.SizedBox(height: 12),
             ],
-            pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-',
-                style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+            // Format Precio Unitario
+            () {
+              final numFormat = NumberFormat("#,##0.00", "de_DE");
+              String prefix = currency == 'USD' ? 'USD ' : (currency == 'GS' ? 'Gs. ' : '$currency ');
+              String formattedPrice = numFormat.format(price);
+              return pw.Text('Precio Unitario: $prefix$formattedPrice.-',
+                  style: pw.TextStyle(fontSize: 14, color: PdfColors.black));
+            }(),
             pw.SizedBox(height: 16),
             if (financingPlans.isNotEmpty) ...[
               pw.Text('FINANCIACIÓN',
@@ -385,11 +409,19 @@ class PdfGenerator {
               pw.SizedBox(height: 16),
             ],
             if (paymentMethod != 'Financiado') ...[
-              pw.Text(
-                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-',
-                  style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
+              // Format Total a Abonar for non-financed
+              () {
+                final numFormat = NumberFormat("#,##0.00", "de_DE");
+                String prefix = currency == 'USD' ? 'USD ' : (currency == 'GS' ? 'Gs. ' : '$currency ');
+                String formattedTotal = numFormat.format(totalToPay);
+                return pw.Text('Total a Abonar: $prefix$formattedTotal.-',
+                    style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.black));
+              }(),
+              pw.SizedBox(height: 16),
+            ],
                       color: PdfColors.black)),
               pw.SizedBox(height: 16),
             ],
