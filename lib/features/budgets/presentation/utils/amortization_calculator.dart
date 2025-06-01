@@ -9,7 +9,7 @@ class AmortizationCalculator {
     Map<int, double>? reinforcements,
     String? reinforcementMonth,
     String paymentFrequency = 'Mensual',
-    double? annualNominalRate, // Tasa nominal anual
+    double? annualNominalRate,
   }) {
     List<Map<String, dynamic>> schedule = [];
     double remainingCapital = capital;
@@ -18,10 +18,10 @@ class AmortizationCalculator {
     double periodicRate;
     switch (paymentFrequency) {
       case 'Trimestral':
-        periodicRate = monthlyRate * 3;
+        periodicRate = pow(1 + monthlyRate, 3) - 1;
         break;
       case 'Semestral':
-        periodicRate = monthlyRate * 6;
+        periodicRate = pow(1 + monthlyRate, 6) - 1;
         break;
       case 'Mensual':
       default:
@@ -29,7 +29,6 @@ class AmortizationCalculator {
     }
 
     final now = DateTime.now();
-
     const months = [
       'Enero',
       'Febrero',
@@ -86,8 +85,8 @@ class AmortizationCalculator {
       }
     }
 
-    int initialMonthIndexValue; // This will be the 0-indexed month for the first installment.
-    int currentActualMonthZeroIndexed = now.month - 1; // e.g., May (5) -> 4
+    int initialMonthIndexValue;
+    int currentActualMonthZeroIndexed = now.month - 1;
 
     switch (paymentFrequency) {
       case 'Trimestral':
@@ -102,10 +101,9 @@ class AmortizationCalculator {
         break;
     }
 
-    int monthIndex = initialMonthIndexValue; // Initialize monthIndex for the first installment.
+    int monthIndex = initialMonthIndexValue;
 
     for (int i = 1; i <= numberOfInstallments; i++) {
-      // If this is NOT the first installment (i > 1), then advance monthIndex based on the previous one.
       if (i > 1) {
         switch (paymentFrequency) {
           case 'Mensual':
@@ -122,6 +120,9 @@ class AmortizationCalculator {
 
       double interest = remainingCapital * periodicRate;
       double principal = fixedMonthlyPayment - interest;
+      if (principal < 0 || remainingCapital < principal) {
+        principal = remainingCapital;
+      }
       remainingCapital -= principal;
 
       double reinforcement = adjustedReinforcements.containsKey(i)
@@ -135,6 +136,7 @@ class AmortizationCalculator {
       switch (paymentFrequency) {
         case 'Mensual':
           daysToDueDate = i * 30;
+          break;
         case 'Trimestral':
           daysToDueDate = i * 90;
           break;
@@ -152,21 +154,16 @@ class AmortizationCalculator {
       }
 
       String monthName = months[monthIndex % 12];
-      // Potentially, also calculate and add 'year' to the schedule map if needed:
-      // int installmentYear = now.year + (monthIndex ~/ 12);
 
       schedule.add({
         'cuota': i,
         'month': monthName,
-        // 'year': installmentYear, // Uncomment if year is needed
         'capital': principal,
         'intereses': interest,
         'pago_total': fixedMonthlyPayment + reinforcement,
         'capital_pendiente': remainingCapital > 0 ? remainingCapital : 0,
         'valor_descontado': discountedValue,
       });
-
-      // OLD switch block for incrementing monthIndex at the END of the loop is REMOVED.
     }
 
     // Agregar cálculo de seguro y gastos administrativos
@@ -176,7 +173,6 @@ class AmortizationCalculator {
     final double totalDeducciones = seguro + gastosAdministrativos;
     final double montoNetoEntregado = capital - totalDeducciones;
 
-    // Guardar estos valores dentro del primer item del schedule
     if (schedule.isNotEmpty) {
       schedule.first.addAll({
         'seguro': seguro,

@@ -93,7 +93,7 @@ class PdfGenerator {
         paymentFrequency != null &&
         numberOfInstallments != null) {
       double capital = price - (delivery ?? 0);
-      double monthlyRate = currency == 'USD' ? 0.00001 : 0.018;
+      double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
       int effectiveInstallments = numberOfInstallments;
 
       double periodicRate;
@@ -108,6 +108,11 @@ class PdfGenerator {
         default:
           periodicRate = monthlyRate;
       }
+
+      double fixedPayment = (capital *
+              periodicRate *
+              pow(1 + periodicRate, effectiveInstallments)) /
+          (pow(1 + periodicRate, effectiveInstallments) - 1);
 
       Map<int, double>? reinforcements;
       if (hasReinforcements == true &&
@@ -134,12 +139,27 @@ class PdfGenerator {
         }
       }
 
-      double fixedPayment = (capital *
-              periodicRate *
-              pow(1 + periodicRate, effectiveInstallments)) /
-          (pow(1 + periodicRate, effectiveInstallments) - 1);
+      // Use provided schedule if available
+      if (schedule.isEmpty) {
+        schedule = AmortizationCalculator.calculateFrenchAmortization(
+          capital: capital,
+          monthlyRate: monthlyRate,
+          numberOfInstallments: effectiveInstallments,
+          fixedMonthlyPayment: fixedPayment,
+          reinforcements: reinforcements,
+          reinforcementMonth: reinforcementMonth,
+          paymentFrequency: paymentFrequency,
+          annualNominalRate: 0.09,
+        );
+      }
 
-      // Generar financingPlans siempre para "Financiado"
+      generatedMonthlyPayment = schedule.isNotEmpty
+          ? (schedule[0]['pago_total'] as double)
+          : fixedPayment;
+      generatedTotalToPay = schedule.fold(
+              0.0, (sum, item) => sum + (item['pago_total'] as double)) +
+          (delivery ?? 0);
+
       String planName = '';
       switch (paymentFrequency) {
         case 'Mensual':
@@ -163,26 +183,6 @@ class PdfGenerator {
               : 'Plan anual sin entrega';
           break;
       }
-
-      if (schedule.isEmpty) {
-        schedule = AmortizationCalculator.calculateFrenchAmortization(
-          capital: capital,
-          monthlyRate: monthlyRate,
-          numberOfInstallments: effectiveInstallments,
-          fixedMonthlyPayment: fixedPayment,
-          reinforcements: reinforcements,
-          reinforcementMonth: reinforcementMonth,
-          paymentFrequency: paymentFrequency,
-          annualNominalRate: 0.09,
-        );
-      }
-
-      generatedMonthlyPayment = schedule.isNotEmpty
-          ? (schedule[0]['pago_total'] as double)
-          : fixedPayment;
-      generatedTotalToPay = schedule.fold(
-              0.0, (sum, item) => sum + (item['pago_total'] as double)) +
-          (delivery ?? 0);
 
       financingPlans = [
         [
