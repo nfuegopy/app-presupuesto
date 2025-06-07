@@ -1,18 +1,41 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 class AmortizationCalculator {
   static List<Map<String, dynamic>> calculateFrenchAmortization({
     required double capital,
-    required double monthlyRate,
     required int numberOfInstallments,
-    required double fixedMonthlyPayment,
     Map<int, double>? reinforcements,
     String? reinforcementMonth,
     String paymentFrequency = 'Mensual',
     double? annualNominalRate,
   }) {
+    // Calcular seguro y gastos administrativos
+    const double porcentajeSeguro = 0.0321731843575419;
+    const double gastosAdministrativos = 50.0;
+    final double seguro = capital * porcentajeSeguro;
+    final double totalDeducciones = seguro + gastosAdministrativos;
+    final double capitalConDeducciones = capital + totalDeducciones;
+
+    debugPrint('[AmortizationCalculator] calculateFrenchAmortization: '
+        'capital=$capital, '
+        'numberOfInstallments=$numberOfInstallments, '
+        'paymentFrequency=$paymentFrequency, '
+        'reinforcements=$reinforcements, '
+        'reinforcementMonth=$reinforcementMonth, '
+        'annualNominalRate=$annualNominalRate, '
+        'seguro=$seguro, '
+        'gastosAdministrativos=$gastosAdministrativos, '
+        'totalDeducciones=$totalDeducciones, '
+        'capitalConDeducciones=$capitalConDeducciones');
+
     List<Map<String, dynamic>> schedule = [];
-    double remainingCapital = capital;
+    double remainingCapital = capitalConDeducciones;
+
+    // Definir monthlyRate a partir de la tasa anual del 9.5%
+    double monthlyRate = 0.095 / 12;
+    debugPrint('[AmortizationCalculator] monthlyRate=$monthlyRate');
 
     // Calcular periodicRate según la frecuencia de pago
     double periodicRate;
@@ -27,6 +50,16 @@ class AmortizationCalculator {
       default:
         periodicRate = monthlyRate;
     }
+    debugPrint('[AmortizationCalculator] periodicRate=$periodicRate');
+
+    // Calcular fixedMonthlyPayment
+    double fixedMonthlyPayment = (capitalConDeducciones *
+            periodicRate *
+            pow(1 + periodicRate, numberOfInstallments)) /
+        (pow(1 + periodicRate, numberOfInstallments) - 1);
+    debugPrint(
+        '[AmortizationCalculator] fixedMonthlyPayment=$fixedMonthlyPayment '
+        '(Formula: capitalConDeducciones * periodicRate * (1 + periodicRate)^n / ((1 + periodicRate)^n - 1))');
 
     final now = DateTime.now();
     const months = [
@@ -83,6 +116,8 @@ class AmortizationCalculator {
         cuota += 12 * cuotasPerMonth;
         if (monthIndex % 12 == 0) yearOffset++;
       }
+      debugPrint(
+          '[AmortizationCalculator] adjustedReinforcements=$adjustedReinforcements');
     }
 
     int initialMonthIndexValue;
@@ -164,23 +199,29 @@ class AmortizationCalculator {
         'capital_pendiente': remainingCapital > 0 ? remainingCapital : 0,
         'valor_descontado': discountedValue,
       });
-    }
 
-    // Agregar cálculo de seguro y gastos administrativos
-    final double porcentajeSeguro = 0.0321731843575419;
-    final double gastosAdministrativos = 50.0;
-    final double seguro = capital * porcentajeSeguro;
-    final double totalDeducciones = seguro + gastosAdministrativos;
-    final double montoNetoEntregado = capital - totalDeducciones;
+      debugPrint('[AmortizationCalculator] Cuota $i: '
+          'month=$monthName, '
+          'principal=$principal, '
+          'interest=$interest, '
+          'pago_total=${fixedMonthlyPayment + reinforcement}, '
+          'remainingCapital=$remainingCapital');
+    }
 
     if (schedule.isNotEmpty) {
       schedule.first.addAll({
         'seguro': seguro,
         'gastos_administrativos': gastosAdministrativos,
-        'monto_entregado': montoNetoEntregado,
+        'monto_entregado': capitalConDeducciones,
       });
+      debugPrint('[AmortizationCalculator] Deducciones: '
+          'seguro=$seguro, '
+          'gastosAdministrativos=$gastosAdministrativos, '
+          'monto_entregado=$capitalConDeducciones');
     }
 
+    debugPrint(
+        '[AmortizationCalculator] Cronograma generado: ${schedule.length} cuotas');
     return schedule;
   }
 }

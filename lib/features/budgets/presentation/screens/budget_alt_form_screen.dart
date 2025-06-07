@@ -395,7 +395,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   _ciudad = value;
                 });
               },
-              enabled: _departamento != null, // Deshabilitar si no hay departamento
+              enabled:
+                  _departamento != null, // Deshabilitar si no hay departamento
             ),
             const SizedBox(height: 32),
             Text(
@@ -577,10 +578,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .error
-                      .withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -690,18 +688,23 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       selectedClientId: null,
                     );
                   } else if (_selectedClient != null) {
-                     // Client was selected, use their details, potentially with edits from fields
+                    // Client was selected, use their details, potentially with edits from fields
                     budgetProvider.updateClient(
-                      razonSocial: _razonSocialController.text.trim(), // Use controller data
-                      ruc: _rucController.text.trim(),              // Use controller data
-                      email: _emailController.text.trim(),            // Use controller data
-                      telefono: _telefonoController.text.trim(),        // Use controller data
-                      ciudad: _ciudad,                                // Use state variable for dropdown
-                      departamento: _departamento,                    // Use state variable for dropdown
-                      selectedClientId: _selectedClient!.id,          // Keep the selected ID
+                      razonSocial: _razonSocialController.text
+                          .trim(), // Use controller data
+                      ruc: _rucController.text.trim(), // Use controller data
+                      email:
+                          _emailController.text.trim(), // Use controller data
+                      telefono: _telefonoController.text
+                          .trim(), // Use controller data
+                      ciudad: _ciudad, // Use state variable for dropdown
+                      departamento:
+                          _departamento, // Use state variable for dropdown
+                      selectedClientId:
+                          _selectedClient!.id, // Keep the selected ID
                     );
                   } else {
-                     // No client selected, and not a new client (e.g., fields typed directly)
+                    // No client selected, and not a new client (e.g., fields typed directly)
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -771,14 +774,14 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   await budgetProvider.saveAndSharePdf(context);
                   if (!context.mounted) return; // Check after async call
                   if (budgetProvider.error != null) {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(content: Text(budgetProvider.error!)),
-                     );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(budgetProvider.error!)),
+                    );
                   } else {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       const SnackBar(
-                           content: Text('Presupuesto generado y guardado')),
-                     );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Presupuesto generado y guardado')),
+                    );
                   }
                 } finally {
                   if (context.mounted) {

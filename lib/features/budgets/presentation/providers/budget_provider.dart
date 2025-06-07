@@ -95,6 +95,8 @@ class BudgetProvider with ChangeNotifier {
     String? departamento,
     String? selectedClientId,
   }) {
+    debugPrint(
+        '[BudgetProvider] updateClient: razonSocial=$razonSocial, ruc=$ruc, selectedClientId=$selectedClientId');
     if (razonSocial.isEmpty || ruc.isEmpty) {
       _error = 'Razón Social y RUC son obligatorios.';
       notifyListeners();
@@ -120,6 +122,8 @@ class BudgetProvider with ChangeNotifier {
   }
 
   void updateProduct(Product product) {
+    debugPrint(
+        '[BudgetProvider] updateProduct: name=${product.name}, price=${product.price}');
     _product = product;
     _price = product.price;
     _currency = product.currency;
@@ -142,6 +146,21 @@ class BudgetProvider with ChangeNotifier {
     String? validityOffer,
     String? benefits,
   }) {
+    debugPrint('[BudgetProvider] updatePaymentDetails: '
+        'currency=$currency, '
+        'price=$price, '
+        'capital=${price - (delivery ?? 0)}, '
+        'delivery=$delivery, '
+        'numberOfInstallments=$numberOfInstallments, '
+        'paymentMethod=$paymentMethod, '
+        'financingType=$financingType, '
+        'paymentFrequency=$paymentFrequency, '
+        'hasReinforcements=$hasReinforcements, '
+        'reinforcementFrequency=$reinforcementFrequency, '
+        'numberOfReinforcements=$numberOfReinforcements, '
+        'reinforcementAmount=$reinforcementAmount, '
+        'reinforcementMonth=$reinforcementMonth');
+
     if (price <= 0) {
       _error = 'El precio debe ser mayor a 0.';
       notifyListeners();
@@ -179,6 +198,7 @@ class BudgetProvider with ChangeNotifier {
 
     _currency = currency;
     _price = price;
+    debugPrint('[BudgetProvider] Precio almacenado: $_price');
     _paymentMethod = paymentMethod;
     _financingType = financingType;
     _delivery = delivery;
@@ -197,17 +217,14 @@ class BudgetProvider with ChangeNotifier {
         numberOfInstallments != null &&
         delivery != null) {
       double capital = price - delivery;
-      double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
-      double fixedMonthlyPayment =
-          (capital * monthlyRate * pow(1 + monthlyRate, numberOfInstallments)) /
-              (pow(1 + monthlyRate, numberOfInstallments) - 1);
+
+      debugPrint(
+          '[BudgetProvider] Calculando amortización: capital=$capital, numberOfInstallments=$numberOfInstallments');
 
       _amortizationSchedule =
           AmortizationCalculator.calculateFrenchAmortization(
         capital: capital,
-        monthlyRate: monthlyRate,
         numberOfInstallments: numberOfInstallments,
-        fixedMonthlyPayment: fixedMonthlyPayment,
         reinforcements: hasReinforcements == true &&
                 numberOfReinforcements != null &&
                 reinforcementAmount != null
@@ -216,8 +233,11 @@ class BudgetProvider with ChangeNotifier {
             : null,
         reinforcementMonth: reinforcementMonth,
         paymentFrequency: paymentFrequency ?? 'Mensual',
-        annualNominalRate: 0.09,
+        annualNominalRate: 0.095,
       );
+
+      debugPrint(
+          '[BudgetProvider] Amortización generada: ${_amortizationSchedule!.length} cuotas');
     } else {
       _amortizationSchedule = null;
     }
@@ -245,6 +265,7 @@ class BudgetProvider with ChangeNotifier {
     for (int i = 1; i <= numberOfReinforcements; i++) {
       reinforcements[i * interval] = reinforcementAmount;
     }
+    debugPrint('[BudgetProvider] Refuerzos generados: $reinforcements');
     return reinforcements;
   }
 
@@ -267,27 +288,29 @@ class BudgetProvider with ChangeNotifier {
     }
 
     try {
+      debugPrint(
+          '[BudgetProvider] Creando presupuesto: clientId=$_clientId, product=${_product!.name}');
       if (_selectedClientId != null) {
         _clientId = _selectedClientId;
-        // If a client was selected, update their information if it changed
-        final clientDocRef = FirebaseFirestore.instance.collection('clients').doc(_clientId);
+        final clientDocRef =
+            FirebaseFirestore.instance.collection('clients').doc(_clientId);
         final clientSnapshot = await clientDocRef.get();
         if (clientSnapshot.exists) {
-          final existingClientData = clientSnapshot.data() as Map<String, dynamic>;
+          final existingClientData =
+              clientSnapshot.data() as Map<String, dynamic>;
           final updatedClientModel = ClientModel(
             id: _clientId!,
-            razonSocial: _client!.razonSocial, // Use form data
-            ruc: _client!.ruc, // Use form data
-            email: _client!.email, // Use form data
-            telefono: _client!.telefono, // Use form data
-            ciudad: _client!.ciudad, // Use form data
-            departamento: _client!.departamento, // Use form data
-            createdBy: existingClientData['createdBy'], // Preserve original creator
+            razonSocial: _client!.razonSocial,
+            ruc: _client!.ruc,
+            email: _client!.email,
+            telefono: _client!.telefono,
+            ciudad: _client!.ciudad,
+            departamento: _client!.departamento,
+            createdBy: existingClientData['createdBy'],
           );
           await clientDocRef.update(updatedClientModel.toMap());
         }
       } else {
-        // No client selected, check if RUC exists
         final rucQuery = await FirebaseFirestore.instance
             .collection('clients')
             .where('ruc', isEqualTo: _client!.ruc)
@@ -295,30 +318,26 @@ class BudgetProvider with ChangeNotifier {
             .get();
 
         if (rucQuery.docs.isNotEmpty) {
-          // Client with this RUC already exists
           final existingClientDoc = rucQuery.docs.first;
           _clientId = existingClientDoc.id;
           final existingClientData = existingClientDoc.data();
 
-          // Update existing client with potentially new details from the form
           final updatedClientModel = ClientModel(
             id: _clientId!,
-            razonSocial: _client!.razonSocial, // Form data
-            ruc: _client!.ruc, // Form data (should be same)
-            email: _client!.email, // Form data
-            telefono: _client!.telefono, // Form data
-            ciudad: _client!.ciudad, // Form data
-            departamento: _client!.departamento, // Form data
-            createdBy: existingClientData['createdBy'], // Preserve original creator
+            razonSocial: _client!.razonSocial,
+            ruc: _client!.ruc,
+            email: _client!.email,
+            telefono: _client!.telefono,
+            ciudad: _client!.ciudad,
+            departamento: _client!.departamento,
+            createdBy: existingClientData['createdBy'],
           );
           await FirebaseFirestore.instance
               .collection('clients')
               .doc(_clientId)
               .update(updatedClientModel.toMap());
           _error = null;
-          // notifyListeners(); // Notifying at the end of the method
         } else {
-          // No client with this RUC, create a new one
           final newClientId = const Uuid().v4();
           final clientModel = ClientModel(
             id: newClientId,
@@ -328,7 +347,7 @@ class BudgetProvider with ChangeNotifier {
             telefono: _client!.telefono,
             ciudad: _client!.ciudad,
             departamento: _client!.departamento,
-            createdBy: user.uid, // UID of the current user
+            createdBy: user.uid,
           );
           await FirebaseFirestore.instance
               .collection('clients')
@@ -400,6 +419,16 @@ class BudgetProvider with ChangeNotifier {
         return;
       }
       if (!context.mounted) return;
+
+      debugPrint('[BudgetProvider] saveAndSharePdf: '
+          'client=${client.razonSocial}, '
+          'product=${_product!.name}, '
+          'currency=$_currency, '
+          'price=$_price, '
+          'capital=${_price! - (_delivery ?? 0)}, '
+          'numberOfInstallments=$_numberOfInstallments, '
+          'amortizationScheduleLength=${_amortizationSchedule?.length}');
+
       await _pdfGenerator.saveAndSharePdf(
         context: context,
         client: client,

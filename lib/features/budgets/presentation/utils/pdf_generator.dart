@@ -93,26 +93,7 @@ class PdfGenerator {
         paymentFrequency != null &&
         numberOfInstallments != null) {
       double capital = price - (delivery ?? 0);
-      double monthlyRate = currency == 'USD' ? 0.0085 : 0.018;
       int effectiveInstallments = numberOfInstallments;
-
-      double periodicRate;
-      switch (paymentFrequency) {
-        case 'Trimestral':
-          periodicRate = pow(1 + monthlyRate, 3) - 1;
-          break;
-        case 'Semestral':
-          periodicRate = pow(1 + monthlyRate, 6) - 1;
-          break;
-        case 'Mensual':
-        default:
-          periodicRate = monthlyRate;
-      }
-
-      double fixedPayment = (capital *
-              periodicRate *
-              pow(1 + periodicRate, effectiveInstallments)) /
-          (pow(1 + periodicRate, effectiveInstallments) - 1);
 
       Map<int, double>? reinforcements;
       if (hasReinforcements == true &&
@@ -143,19 +124,16 @@ class PdfGenerator {
       if (schedule.isEmpty) {
         schedule = AmortizationCalculator.calculateFrenchAmortization(
           capital: capital,
-          monthlyRate: monthlyRate,
           numberOfInstallments: effectiveInstallments,
-          fixedMonthlyPayment: fixedPayment,
           reinforcements: reinforcements,
           reinforcementMonth: reinforcementMonth,
           paymentFrequency: paymentFrequency,
-          annualNominalRate: 0.09,
+          annualNominalRate: 0.095,
         );
       }
 
-      generatedMonthlyPayment = schedule.isNotEmpty
-          ? (schedule[0]['pago_total'] as double)
-          : fixedPayment;
+      generatedMonthlyPayment =
+          schedule.isNotEmpty ? (schedule[0]['pago_total'] as double) : 0.0;
       generatedTotalToPay = schedule.fold(
               0.0, (sum, item) => sum + (item['pago_total'] as double)) +
           (delivery ?? 0);
