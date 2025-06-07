@@ -1,35 +1,67 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 class AmortizationCalculator {
   static List<Map<String, dynamic>> calculateFrenchAmortization({
     required double capital,
-    required double monthlyRate,
     required int numberOfInstallments,
-    required double fixedMonthlyPayment,
     Map<int, double>? reinforcements,
     String? reinforcementMonth,
     String paymentFrequency = 'Mensual',
-    double? annualNominalRate, // Tasa nominal anual
+    double? annualNominalRate,
   }) {
+    // Calcular seguro y gastos administrativos
+    const double porcentajeSeguro = 0.0321731843575419;
+    const double gastosAdministrativos = 50.0;
+    final double seguro = capital * porcentajeSeguro;
+    final double totalDeducciones = seguro + gastosAdministrativos;
+    final double capitalConDeducciones = capital + totalDeducciones;
+
+    debugPrint('[AmortizationCalculator] calculateFrenchAmortization: '
+        'capital=$capital, '
+        'numberOfInstallments=$numberOfInstallments, '
+        'paymentFrequency=$paymentFrequency, '
+        'reinforcements=$reinforcements, '
+        'reinforcementMonth=$reinforcementMonth, '
+        'annualNominalRate=$annualNominalRate, '
+        'seguro=$seguro, '
+        'gastosAdministrativos=$gastosAdministrativos, '
+        'totalDeducciones=$totalDeducciones, '
+        'capitalConDeducciones=$capitalConDeducciones');
+
     List<Map<String, dynamic>> schedule = [];
-    double remainingCapital = capital;
+    double remainingCapital = capitalConDeducciones;
+
+    // Definir monthlyRate a partir de la tasa anual del 9.5%
+    double monthlyRate = 0.095 / 12;
+    debugPrint('[AmortizationCalculator] monthlyRate=$monthlyRate');
 
     // Calcular periodicRate según la frecuencia de pago
     double periodicRate;
     switch (paymentFrequency) {
       case 'Trimestral':
-        periodicRate = monthlyRate * 3;
+        periodicRate = pow(1 + monthlyRate, 3) - 1;
         break;
       case 'Semestral':
-        periodicRate = monthlyRate * 6;
+        periodicRate = pow(1 + monthlyRate, 6) - 1;
         break;
       case 'Mensual':
       default:
         periodicRate = monthlyRate;
     }
+    debugPrint('[AmortizationCalculator] periodicRate=$periodicRate');
+
+    // Calcular fixedMonthlyPayment
+    double fixedMonthlyPayment = (capitalConDeducciones *
+            periodicRate *
+            pow(1 + periodicRate, numberOfInstallments)) /
+        (pow(1 + periodicRate, numberOfInstallments) - 1);
+    debugPrint(
+        '[AmortizationCalculator] fixedMonthlyPayment=$fixedMonthlyPayment '
+        '(Formula: capitalConDeducciones * periodicRate * (1 + periodicRate)^n / ((1 + periodicRate)^n - 1))');
 
     final now = DateTime.now();
-
     const months = [
       'Enero',
       'Febrero',
@@ -84,10 +116,12 @@ class AmortizationCalculator {
         cuota += 12 * cuotasPerMonth;
         if (monthIndex % 12 == 0) yearOffset++;
       }
+      debugPrint(
+          '[AmortizationCalculator] adjustedReinforcements=$adjustedReinforcements');
     }
 
-    int initialMonthIndexValue; // This will be the 0-indexed month for the first installment.
-    int currentActualMonthZeroIndexed = now.month - 1; // e.g., May (5) -> 4
+    int initialMonthIndexValue;
+    int currentActualMonthZeroIndexed = now.month - 1;
 
     switch (paymentFrequency) {
       case 'Trimestral':
@@ -102,10 +136,9 @@ class AmortizationCalculator {
         break;
     }
 
-    int monthIndex = initialMonthIndexValue; // Initialize monthIndex for the first installment.
+    int monthIndex = initialMonthIndexValue;
 
     for (int i = 1; i <= numberOfInstallments; i++) {
-      // If this is NOT the first installment (i > 1), then advance monthIndex based on the previous one.
       if (i > 1) {
         switch (paymentFrequency) {
           case 'Mensual':
@@ -122,6 +155,9 @@ class AmortizationCalculator {
 
       double interest = remainingCapital * periodicRate;
       double principal = fixedMonthlyPayment - interest;
+      if (principal < 0 || remainingCapital < principal) {
+        principal = remainingCapital;
+      }
       remainingCapital -= principal;
 
       double reinforcement = adjustedReinforcements.containsKey(i)
@@ -135,6 +171,7 @@ class AmortizationCalculator {
       switch (paymentFrequency) {
         case 'Mensual':
           daysToDueDate = i * 30;
+          break;
         case 'Trimestral':
           daysToDueDate = i * 90;
           break;
@@ -152,13 +189,10 @@ class AmortizationCalculator {
       }
 
       String monthName = months[monthIndex % 12];
-      // Potentially, also calculate and add 'year' to the schedule map if needed:
-      // int installmentYear = now.year + (monthIndex ~/ 12);
 
       schedule.add({
         'cuota': i,
         'month': monthName,
-        // 'year': installmentYear, // Uncomment if year is needed
         'capital': principal,
         'intereses': interest,
         'pago_total': fixedMonthlyPayment + reinforcement,
@@ -166,25 +200,28 @@ class AmortizationCalculator {
         'valor_descontado': discountedValue,
       });
 
-      // OLD switch block for incrementing monthIndex at the END of the loop is REMOVED.
+      debugPrint('[AmortizationCalculator] Cuota $i: '
+          'month=$monthName, '
+          'principal=$principal, '
+          'interest=$interest, '
+          'pago_total=${fixedMonthlyPayment + reinforcement}, '
+          'remainingCapital=$remainingCapital');
     }
 
-    // Agregar cálculo de seguro y gastos administrativos
-    final double porcentajeSeguro = 0.0321731843575419;
-    final double gastosAdministrativos = 50.0;
-    final double seguro = capital * porcentajeSeguro;
-    final double totalDeducciones = seguro + gastosAdministrativos;
-    final double montoNetoEntregado = capital - totalDeducciones;
-
-    // Guardar estos valores dentro del primer item del schedule
     if (schedule.isNotEmpty) {
       schedule.first.addAll({
         'seguro': seguro,
         'gastos_administrativos': gastosAdministrativos,
-        'monto_entregado': montoNetoEntregado,
+        'monto_entregado': capitalConDeducciones,
       });
+      debugPrint('[AmortizationCalculator] Deducciones: '
+          'seguro=$seguro, '
+          'gastosAdministrativos=$gastosAdministrativos, '
+          'monto_entregado=$capitalConDeducciones');
     }
 
+    debugPrint(
+        '[AmortizationCalculator] Cronograma generado: ${schedule.length} cuotas');
     return schedule;
   }
 }

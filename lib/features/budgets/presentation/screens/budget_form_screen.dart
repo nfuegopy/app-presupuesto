@@ -51,7 +51,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   String? _reinforcementFrequency;
   String? _reinforcementMonth;
 
-  bool _isLoading = false; // Added state variable
+  bool _isLoading = false;
 
   List<ParaguayLocation> _locations = [];
   List<String> _departamentos = [];
@@ -109,7 +109,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   void _updateCiudades(String? departamento) {
     setState(() {
       _departamento = departamento;
-      _ciudad = null; // Resetear ciudad al cambiar departamento
+      _ciudad = null;
       if (departamento != null) {
         final selectedLocation = _locations.firstWhere(
           (loc) => loc.departamento == departamento,
@@ -283,7 +283,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _telefonoController.text = client.telefono ?? '';
                       _ciudad = client.ciudad;
                       _departamento = client.departamento;
-                      _updateCiudades(_departamento); // Cargar ciudades
+                      _updateCiudades(_departamento);
                       budgetProvider.updateClient(
                         razonSocial: client.razonSocial,
                         ruc: client.ruc,
@@ -359,7 +359,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   _ciudad = value;
                 });
               },
-              enabled: _departamento != null, // Deshabilitar si no hay departamento
+              enabled: _departamento != null,
             ),
             const SizedBox(height: 32),
             Text(
@@ -541,10 +541,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .error
-                      .withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -558,9 +555,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
-                if (_isLoading) return; // Prevent multiple submissions
+                if (_isLoading) return;
 
-                // Existing validation logic
                 if (_hasReinforcements == null && _paymentFrequency != null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -606,12 +602,10 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   }
                 }
 
-                // Start loading indication
                 setState(() {
                   _isLoading = true;
                 });
-                // Show a modal loading dialog
-                if (!context.mounted) return; // Check before showing dialog
+                if (!context.mounted) return;
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -634,6 +628,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
 
                 try {
                   if (_isNewClient) {
+                    debugPrint(
+                        '[BudgetFormScreen] Actualizando cliente nuevo: razonSocial=${_razonSocialController.text.trim()}, ruc=${_rucController.text.trim()}');
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -644,6 +640,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       selectedClientId: null,
                     );
                   } else if (_selectedClient != null) {
+                    debugPrint(
+                        '[BudgetFormScreen] Actualizando cliente existente: id=${_selectedClient!.id}, razonSocial=${_razonSocialController.text.trim()}');
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -654,6 +652,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       selectedClientId: _selectedClient!.id,
                     );
                   } else {
+                    debugPrint(
+                        '[BudgetFormScreen] Actualizando cliente sin selección: razonSocial=${_razonSocialController.text.trim()}');
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -670,23 +670,60 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
                     );
-                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                    return;
                   }
+
+                  final priceText = _priceController.text.trim();
+                  double? price;
+                  if (priceText.isNotEmpty) {
+                    price = double.tryParse(priceText.replaceAll(',', '.'));
+                    //           price = double.tryParse(priceText);
+                    if (price == null) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('Por favor, ingrese un precio válido')),
+                      );
+                      return;
+                    }
+                  } else {
+                    price = widget.product.price;
+                  }
+
+                  final delivery = _deliveryController.text.isNotEmpty
+                      ? double.parse(_deliveryController.text)
+                      : 0.0;
+                  final capital = price - delivery;
+                  final numberOfInstallments =
+                      _numberOfInstallmentsController.text.isNotEmpty
+                          ? int.parse(_numberOfInstallmentsController.text)
+                          : null;
+
+                  debugPrint(
+                      '[BudgetFormScreen] Enviando a BudgetProvider.updatePaymentDetails: '
+                      'currency=${_currency ?? widget.product.currency}, '
+                      'price=$price, '
+                      'capital=$capital, '
+                      'delivery=$delivery, '
+                      'numberOfInstallments=$numberOfInstallments, '
+                      'paymentMethod=${_paymentMethod ?? 'Contado'}, '
+                      'financingType=$_financingType, '
+                      'paymentFrequency=$_paymentFrequency, '
+                      'hasReinforcements=$_hasReinforcements, '
+                      'reinforcementFrequency=$_reinforcementFrequency, '
+                      'numberOfReinforcements=${_numberOfReinforcementsController.text.isNotEmpty ? int.parse(_numberOfReinforcementsController.text) : null}, '
+                      'reinforcementAmount=${_reinforcementAmountController.text.isNotEmpty ? double.parse(_reinforcementAmountController.text) : null}, '
+                      'reinforcementMonth=$_reinforcementMonth');
 
                   budgetProvider.updatePaymentDetails(
                     currency: _currency ?? widget.product.currency,
-                    price: double.tryParse(_priceController.text) ??
-                        widget.product.price,
+                    price: price,
                     paymentMethod: _paymentMethod ?? 'Contado',
                     financingType: _financingType,
-                    delivery: _deliveryController.text.isNotEmpty
-                        ? double.parse(_deliveryController.text)
-                        : 0,
+                    delivery: delivery,
                     paymentFrequency: _paymentFrequency,
-                    numberOfInstallments:
-                        _numberOfInstallmentsController.text.isNotEmpty
-                            ? int.parse(_numberOfInstallmentsController.text)
-                            : null,
+                    numberOfInstallments: numberOfInstallments,
                     hasReinforcements: _hasReinforcements,
                     reinforcementFrequency: _reinforcementFrequency,
                     numberOfReinforcements:
@@ -707,33 +744,37 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
                     );
-                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                    return;
                   }
 
+                  debugPrint(
+                      '[BudgetFormScreen] Llamando a BudgetProvider.createBudget');
                   await budgetProvider.createBudget();
                   if (budgetProvider.error != null) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
                     );
-                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                    return;
                   }
 
+                  debugPrint(
+                      '[BudgetFormScreen] Llamando a BudgetProvider.saveAndSharePdf');
                   await budgetProvider.saveAndSharePdf(context);
-                  if (!context.mounted) return; // Check after async call
+                  if (!context.mounted) return;
                   if (budgetProvider.error != null) {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(content: Text(budgetProvider.error!)),
-                     );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(budgetProvider.error!)),
+                    );
                   } else {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       const SnackBar(
-                           content: Text('Presupuesto generado y guardado')),
-                     );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Presupuesto generado y guardado')),
+                    );
                   }
                 } finally {
                   if (context.mounted) {
-                    Navigator.of(context).pop(); // Dismiss the dialog
+                    Navigator.of(context).pop();
                   }
                   setState(() {
                     _isLoading = false;
