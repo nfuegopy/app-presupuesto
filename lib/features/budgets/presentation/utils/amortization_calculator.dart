@@ -75,40 +75,54 @@ class AmortizationCalculator {
     if (reinforcementMonth != null && reinforcements != null) {
       adjustedReinforcements = {};
       int reinforcementMonthIndex = months.indexOf(reinforcementMonth);
-      int cuotasPerMonth;
-      switch (paymentFrequency) {
-        case 'Mensual':
-          cuotasPerMonth = 1;
-          break;
-        case 'Trimestral':
-          cuotasPerMonth = 3;
-          break;
-        case 'Semestral':
-          cuotasPerMonth = 6;
-          break;
-        default:
-          cuotasPerMonth = 1;
+      int cuotasPerReinforcement;
+      // Determinar el intervalo de refuerzos basado en las claves de reinforcements
+      if (reinforcements.isNotEmpty) {
+        List<int> keys = reinforcements.keys.toList()..sort();
+        cuotasPerReinforcement = keys.length > 1
+            ? keys[1] - keys[0]
+            : 6; // Default a 6 para semestral
+      } else {
+        cuotasPerReinforcement = paymentFrequency == 'Mensual'
+            ? 6
+            : paymentFrequency == 'Trimestral'
+                ? 2
+                : paymentFrequency == 'Semestral'
+                    ? 1
+                    : 6;
       }
 
       int cuota = 1;
-      int monthIndex = now.month;
-      int yearOffset = 0;
+      int currentMonthIndex = now.month - 1; // Mes actual (0-based)
+      int monthsToFirstReinforcement =
+          (reinforcementMonthIndex - currentMonthIndex) % 12;
+      if (monthsToFirstReinforcement <= 0) monthsToFirstReinforcement += 12;
+
+      int firstReinforcementCuota;
+      switch (paymentFrequency) {
+        case 'Mensual':
+          firstReinforcementCuota = monthsToFirstReinforcement;
+          break;
+        case 'Trimestral':
+          firstReinforcementCuota = (monthsToFirstReinforcement / 3).ceil();
+          break;
+        case 'Semestral':
+          firstReinforcementCuota = (monthsToFirstReinforcement / 6).ceil();
+          break;
+        default:
+          firstReinforcementCuota = monthsToFirstReinforcement;
+      }
+
       int reinforcementCount = 0;
       List<int> reinforcementKeys = reinforcements.keys.toList()..sort();
-      while (reinforcementCount < reinforcementKeys.length) {
-        while (monthIndex % 12 != reinforcementMonthIndex) {
-          monthIndex++;
-          cuota += cuotasPerMonth;
-          if (monthIndex % 12 == 0) yearOffset++;
-        }
-        if (cuota <= numberOfInstallments) {
-          adjustedReinforcements[cuota] =
-              reinforcements[reinforcementKeys[reinforcementCount]]!;
-          reinforcementCount++;
-        }
-        monthIndex += 12;
-        cuota += 12 * cuotasPerMonth;
-        if (monthIndex % 12 == 0) yearOffset++;
+      cuota = firstReinforcementCuota;
+
+      while (reinforcementCount < reinforcementKeys.length &&
+          cuota <= numberOfInstallments) {
+        adjustedReinforcements[cuota] =
+            reinforcements[reinforcementKeys[reinforcementCount]]!;
+        reinforcementCount++;
+        cuota += cuotasPerReinforcement;
       }
       debugPrint(
           '[AmortizationCalculator] adjustedReinforcements=$adjustedReinforcements');
