@@ -51,7 +51,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   String? _reinforcementMonth;
   Product? _selectedProduct;
 
-  bool _isLoading = false; // Added state variable
+  bool _isLoading = false;
 
   List<ParaguayLocation> _locations = [];
   List<String> _departamentos = [];
@@ -106,7 +106,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   void _updateCiudades(String? departamento) {
     setState(() {
       _departamento = departamento;
-      _ciudad = null; // Resetear ciudad al cambiar departamento
+      _ciudad = null;
       if (departamento != null) {
         final selectedLocation = _locations.firstWhere(
           (loc) => loc.departamento == departamento,
@@ -319,7 +319,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       _telefonoController.text = client.telefono ?? '';
                       _ciudad = client.ciudad;
                       _departamento = client.departamento;
-                      _updateCiudades(_departamento); // Cargar ciudades
+                      _updateCiudades(_departamento);
                       budgetProvider.updateClient(
                         razonSocial: client.razonSocial,
                         ruc: client.ruc,
@@ -395,8 +395,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   _ciudad = value;
                 });
               },
-              enabled:
-                  _departamento != null, // Deshabilitar si no hay departamento
+              enabled: _departamento != null,
             ),
             const SizedBox(height: 32),
             Text(
@@ -530,10 +529,11 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       });
                     },
                   ),
-                  if (_reinforcementFrequency == 'Anual') ...[
+                  if (_reinforcementFrequency == 'Anual' ||
+                      _reinforcementFrequency == 'Semestral') ...[
                     const SizedBox(height: 16),
                     CustomDropdown(
-                      label: 'Mes de Abono Anual',
+                      label: 'Mes de Inicio de Refuerzos',
                       value: _reinforcementMonth,
                       items: months,
                       onChanged: (value) {
@@ -592,9 +592,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
             CustomButton(
               text: 'Guardar y Generar Presupuesto',
               onPressed: () async {
-                if (_isLoading) return; // Prevent multiple submissions
+                if (_isLoading) return;
 
-                // Existing validation logic
                 if (_selectedProduct == null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -637,24 +636,23 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     );
                     return;
                   }
-                  if (_reinforcementFrequency == 'Anual' &&
+                  if ((_reinforcementFrequency == 'Anual' ||
+                          _reinforcementFrequency == 'Semestral') &&
                       _reinforcementMonth == null) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                           content: Text(
-                              'Por favor, seleccione el mes de abono anual')),
+                              'Por favor, seleccione el mes de inicio de refuerzos')),
                     );
                     return;
                   }
                 }
 
-                // Start loading indication
                 setState(() {
                   _isLoading = true;
                 });
-                // Show a modal loading dialog
-                if (!context.mounted) return; // Check before showing dialog
+                if (!context.mounted) return;
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -676,7 +674,6 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                 );
 
                 try {
-                  // Logic for updating client
                   if (_isNewClient) {
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
@@ -688,23 +685,16 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       selectedClientId: null,
                     );
                   } else if (_selectedClient != null) {
-                    // Client was selected, use their details, potentially with edits from fields
                     budgetProvider.updateClient(
-                      razonSocial: _razonSocialController.text
-                          .trim(), // Use controller data
-                      ruc: _rucController.text.trim(), // Use controller data
-                      email:
-                          _emailController.text.trim(), // Use controller data
-                      telefono: _telefonoController.text
-                          .trim(), // Use controller data
-                      ciudad: _ciudad, // Use state variable for dropdown
-                      departamento:
-                          _departamento, // Use state variable for dropdown
-                      selectedClientId:
-                          _selectedClient!.id, // Keep the selected ID
+                      razonSocial: _razonSocialController.text.trim(),
+                      ruc: _rucController.text.trim(),
+                      email: _emailController.text.trim(),
+                      telefono: _telefonoController.text.trim(),
+                      ciudad: _ciudad,
+                      departamento: _departamento,
+                      selectedClientId: _selectedClient!.id,
                     );
                   } else {
-                    // No client selected, and not a new client (e.g., fields typed directly)
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -721,10 +711,9 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
                     );
-                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                    return;
                   }
 
-                  // Logic for updating payment details
                   budgetProvider.updatePaymentDetails(
                     currency: _currency ?? _selectedProduct!.currency,
                     price: double.tryParse(_priceController.text) ??
@@ -759,7 +748,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
                     );
-                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                    return;
                   }
 
                   await budgetProvider.createBudget();
@@ -768,11 +757,11 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
                     );
-                    return; // Error, finally block will dismiss dialog and set isLoading to false
+                    return;
                   }
 
                   await budgetProvider.saveAndSharePdf(context);
-                  if (!context.mounted) return; // Check after async call
+                  if (!context.mounted) return;
                   if (budgetProvider.error != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(budgetProvider.error!)),
@@ -785,7 +774,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   }
                 } finally {
                   if (context.mounted) {
-                    Navigator.of(context).pop(); // Dismiss the dialog
+                    Navigator.of(context).pop();
                   }
                   setState(() {
                     _isLoading = false;

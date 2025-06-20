@@ -493,10 +493,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       });
                     },
                   ),
-                  if (_reinforcementFrequency == 'Anual') ...[
+                  if (_reinforcementFrequency == 'Anual' ||
+                      _reinforcementFrequency == 'Semestral') ...[
                     const SizedBox(height: 16),
                     CustomDropdown(
-                      label: 'Mes de Abono Anual',
+                      label: 'Mes de Inicio de Refuerzos',
                       value: _reinforcementMonth,
                       items: months,
                       onChanged: (value) {
@@ -590,13 +591,14 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     );
                     return;
                   }
-                  if (_reinforcementFrequency == 'Anual' &&
+                  if ((_reinforcementFrequency == 'Anual' ||
+                          _reinforcementFrequency == 'Semestral') &&
                       _reinforcementMonth == null) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                           content: Text(
-                              'Por favor, seleccione el mes de abono anual')),
+                              'Por favor, seleccione el mes de inicio de refuerzos')),
                     );
                     return;
                   }
@@ -677,7 +679,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   double? price;
                   if (priceText.isNotEmpty) {
                     price = double.tryParse(priceText.replaceAll(',', '.'));
-                    //           price = double.tryParse(priceText);
                     if (price == null) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
