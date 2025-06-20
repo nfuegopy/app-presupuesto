@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 
 class AmortizationCalculator {
@@ -11,12 +10,9 @@ class AmortizationCalculator {
     String paymentFrequency = 'Mensual',
     double? annualNominalRate,
   }) {
-    // Calcular seguro y gastos administrativos
-    const double porcentajeSeguro = 0.0321731843575419;
+    // Calcular gastos administrativos
     const double gastosAdministrativos = 50.0;
-    final double seguro = capital * porcentajeSeguro;
-    final double totalDeducciones = seguro + gastosAdministrativos;
-    final double capitalConDeducciones = capital + totalDeducciones;
+    final double capitalConDeducciones = capital + gastosAdministrativos;
 
     debugPrint('[AmortizationCalculator] calculateFrenchAmortization: '
         'capital=$capital, '
@@ -25,9 +21,7 @@ class AmortizationCalculator {
         'reinforcements=$reinforcements, '
         'reinforcementMonth=$reinforcementMonth, '
         'annualNominalRate=$annualNominalRate, '
-        'seguro=$seguro, '
         'gastosAdministrativos=$gastosAdministrativos, '
-        'totalDeducciones=$totalDeducciones, '
         'capitalConDeducciones=$capitalConDeducciones');
 
     List<Map<String, dynamic>> schedule = [];
@@ -210,12 +204,10 @@ class AmortizationCalculator {
 
     if (schedule.isNotEmpty) {
       schedule.first.addAll({
-        'seguro': seguro,
         'gastos_administrativos': gastosAdministrativos,
         'monto_entregado': capitalConDeducciones,
       });
       debugPrint('[AmortizationCalculator] Deducciones: '
-          'seguro=$seguro, '
           'gastosAdministrativos=$gastosAdministrativos, '
           'monto_entregado=$capitalConDeducciones');
     }
