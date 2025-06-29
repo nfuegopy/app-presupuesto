@@ -14,6 +14,7 @@ import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'pdf_preview_screen.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -759,24 +760,49 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     return;
                   }
 
-                  debugPrint(
-                      '[BudgetFormScreen] Llamando a BudgetProvider.saveAndSharePdf');
-                  await budgetProvider.saveAndSharePdf(context);
                   if (!context.mounted) return;
-                  if (budgetProvider.error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                  } else {
+                  final client =
+                      await budgetProvider.getClient(budgetProvider.clientId!);
+                  if (client == null) {
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('Presupuesto generado y guardado')),
+                          content:
+                              Text('No se pudo cargar los datos del cliente.')),
                     );
+                    return;
                   }
+
+                  final pdfBytes =
+                      await budgetProvider.generateBudgetPdf(context);
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(); // Cerrar diálogo de carga
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PdfPreviewScreen(
+                        pdfBytes: pdfBytes,
+                        onShare: () async {
+                          await budgetProvider.saveAndSharePdf(context);
+                          if (!context.mounted) return;
+                          if (budgetProvider.error != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(budgetProvider.error!)),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Presupuesto generado y compartido')),
+                            );
+                          }
+                        },
+                        fileName:
+                            'presupuesto_${client.razonSocial}_${DateTime.now().toIso8601String()}.pdf',
+                      ),
+                    ),
+                  );
                 } finally {
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
                   setState(() {
                     _isLoading = false;
                   });
