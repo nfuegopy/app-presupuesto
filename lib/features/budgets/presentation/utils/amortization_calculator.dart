@@ -10,7 +10,7 @@ class AmortizationCalculator {
     String paymentFrequency = 'Mensual',
     double? annualNominalRate,
   }) {
-    // Calcular gastos administrativos
+    // Calcular gastos administrativos (valor original)
     const double gastosAdministrativos = 50.0;
     final double capitalConDeducciones = capital + gastosAdministrativos;
 
@@ -27,7 +27,7 @@ class AmortizationCalculator {
     List<Map<String, dynamic>> schedule = [];
     double remainingCapital = capitalConDeducciones;
 
-    // Definir monthlyRate a partir de la tasa anual del 9.5%
+    // Definir monthlyRate a partir de la tasa anual del 11.62%
     double monthlyRate = 0.095 / 12;
     debugPrint('[AmortizationCalculator] monthlyRate=$monthlyRate');
 

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart' show Printing;
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/client.dart';
@@ -9,7 +10,7 @@ import '../../../products/domain/entities/product.dart';
 import '../../data/models/client_model.dart';
 import '../utils/pdf_generator.dart';
 import '../utils/amortization_calculator.dart';
-import 'dart:math';
+import 'dart:typed_data';
 
 class BudgetProvider with ChangeNotifier {
   Client? _client;
@@ -405,31 +406,30 @@ class BudgetProvider with ChangeNotifier {
     }
   }
 
-  Future<void> saveAndSharePdf(BuildContext context) async {
+  Future<Uint8List> generateBudgetPdf(BuildContext context) async {
+    if (_clientId == null) {
+      _error = 'No se ha seleccionado o creado un cliente.';
+      notifyListeners();
+      throw Exception(_error);
+    }
+    final client = await getClient(_clientId!);
+    if (client == null) {
+      _error = 'No se pudo cargar los datos del cliente.';
+      notifyListeners();
+      throw Exception(_error);
+    }
+
+    debugPrint('[BudgetProvider] generateBudgetPdf: '
+        'client=${client.razonSocial}, '
+        'product=${_product!.name}, '
+        'currency=$_currency, '
+        'price=$_price, '
+        'capital=${_price! - (_delivery ?? 0)}, '
+        'numberOfInstallments=$_numberOfInstallments, '
+        'amortizationScheduleLength=${_amortizationSchedule?.length}');
+
     try {
-      if (_clientId == null) {
-        _error = 'No se ha seleccionado o creado un cliente.';
-        notifyListeners();
-        return;
-      }
-      final client = await getClient(_clientId!);
-      if (client == null) {
-        _error = 'No se pudo cargar los datos del cliente.';
-        notifyListeners();
-        return;
-      }
-      if (!context.mounted) return;
-
-      debugPrint('[BudgetProvider] saveAndSharePdf: '
-          'client=${client.razonSocial}, '
-          'product=${_product!.name}, '
-          'currency=$_currency, '
-          'price=$_price, '
-          'capital=${_price! - (_delivery ?? 0)}, '
-          'numberOfInstallments=$_numberOfInstallments, '
-          'amortizationScheduleLength=${_amortizationSchedule?.length}');
-
-      await _pdfGenerator.saveAndSharePdf(
+      final pdfBytes = await _pdfGenerator.generateBudgetPdf(
         context: context,
         client: client,
         product: _product!,
@@ -448,6 +448,30 @@ class BudgetProvider with ChangeNotifier {
         amortizationSchedule: _amortizationSchedule,
         validityOffer: _validityOffer,
         benefits: _benefits,
+      );
+      _error = null;
+      return pdfBytes;
+    } catch (e) {
+      _error = 'Error al generar el PDF: $e';
+      debugPrint('PDF Error: $e');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> saveAndSharePdf(BuildContext context) async {
+    try {
+      final pdfBytes = await generateBudgetPdf(context);
+      final client = await getClient(_clientId!);
+      if (client == null) {
+        _error = 'No se pudo cargar los datos del cliente.';
+        notifyListeners();
+        return;
+      }
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename:
+            'presupuesto_${client.razonSocial}_${DateTime.now().toIso8601String()}.pdf',
       );
       _error = null;
     } catch (e) {
