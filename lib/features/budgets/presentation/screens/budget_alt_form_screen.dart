@@ -51,6 +51,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   String? _reinforcementFrequency;
   String? _reinforcementMonth;
   Product? _selectedProduct;
+  String? _clientType; // Nuevo: Tipo de cliente (Física/Jurídica)
 
   bool _isLoading = false;
 
@@ -299,6 +300,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                         _ciudad = null;
                         _departamento = null;
                         _updateCiudades(null);
+                        _clientType =
+                            null; // Limpiar tipo de cliente para nuevo cliente
                       }
                     });
                   },
@@ -321,6 +324,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       _ciudad = client.ciudad;
                       _departamento = client.departamento;
                       _updateCiudades(_departamento);
+                      _clientType = client
+                          .clientType; // Establecer tipo de cliente desde cliente existente
                       budgetProvider.updateClient(
                         razonSocial: client.razonSocial,
                         ruc: client.ruc,
@@ -328,6 +333,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                         telefono: client.telefono,
                         ciudad: client.ciudad,
                         departamento: client.departamento,
+                        clientType: client.clientType, // Pasar tipo de cliente
                         selectedClientId: client.id,
                       );
                     } else {
@@ -338,6 +344,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       _ciudad = null;
                       _departamento = null;
                       _updateCiudades(null);
+                      _clientType = null; // Limpiar tipo de cliente
                       budgetProvider.updateClient(
                         razonSocial: '',
                         ruc: '',
@@ -345,6 +352,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                         telefono: null,
                         ciudad: null,
                         departamento: null,
+                        clientType: null, // Pasar null para tipo de cliente
                         selectedClientId: null,
                       );
                     }
@@ -355,6 +363,18 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                 },
               ),
             if (_isNewClient) ...[
+              CustomDropdown(
+                // Nuevo: Dropdown de Tipo de Cliente
+                label: 'Tipo de Cliente',
+                value: _clientType,
+                items: const ['Persona Física', 'Persona Jurídica'],
+                onChanged: (value) {
+                  setState(() {
+                    _clientType = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
               CustomTextField(
                 controller: _razonSocialController,
                 label: 'Razón Social',
@@ -604,6 +624,16 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   return;
                 }
 
+                if (_isNewClient && _clientType == null) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Por favor, seleccione el tipo de cliente (Persona Física/Jurídica)')),
+                  );
+                  return;
+                }
+
                 if (_hasReinforcements == null && _paymentFrequency != null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -683,6 +713,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       telefono: _telefonoController.text.trim(),
                       ciudad: _ciudad,
                       departamento: _departamento,
+                      clientType: _clientType, // Pasar tipo de cliente
                       selectedClientId: null,
                     );
                   } else if (_selectedClient != null) {
@@ -693,9 +724,12 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       telefono: _telefonoController.text.trim(),
                       ciudad: _ciudad,
                       departamento: _departamento,
+                      clientType: _selectedClient!
+                          .clientType, // Mantener tipo de cliente existente
                       selectedClientId: _selectedClient!.id,
                     );
                   } else {
+                    // Fallback para cuando no se selecciona ningún cliente pero no se marca como nuevo
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -703,6 +737,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       telefono: _telefonoController.text.trim(),
                       ciudad: _ciudad,
                       departamento: _departamento,
+                      clientType:
+                          _clientType, // Pasar tipo de cliente si está configurado, o null
                       selectedClientId: null,
                     );
                   }

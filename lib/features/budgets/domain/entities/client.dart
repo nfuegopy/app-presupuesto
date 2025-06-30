@@ -5,6 +5,7 @@ class Client {
   final String? telefono;
   final String? ciudad;
   final String? departamento;
+  final String? clientType; // Nuevo: Campo para el tipo de cliente
 
   Client({
     required this.razonSocial,
@@ -13,5 +14,6 @@ class Client {
     this.telefono,
     this.ciudad,
     this.departamento,
+    this.clientType, // Nuevo: Añadido al constructor
   });
 }

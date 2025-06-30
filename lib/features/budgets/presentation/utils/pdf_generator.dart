@@ -29,6 +29,7 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
+    double? lifeInsuranceAmount, // Nuevo: Monto del seguro de vida
   }) async {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
@@ -120,7 +121,7 @@ class PdfGenerator {
         }
       }
 
-      // Use provided schedule if available
+      // Usar el cronograma proporcionado si está disponible
       if (schedule.isEmpty) {
         schedule = AmortizationCalculator.calculateFrenchAmortization(
           capital: capital,
@@ -228,6 +229,7 @@ class PdfGenerator {
             totalToPay += (delivery ?? 0);
           }
 
+          // Preparar las cuotas en columnas (máximo 24 cuotas por columna)
           List<List<List<String>>> scheduleColumns = [];
           const int maxRowsPerColumn = 24;
           int numberOfColumns = (schedule.length / maxRowsPerColumn).ceil();
@@ -362,6 +364,17 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 16),
             ],
+            if (lifeInsuranceAmount != null && lifeInsuranceAmount > 0) ...[
+              pw.Text(
+                'Seguro de Vida: $currency ${lifeInsuranceAmount.toStringAsFixed(2)}.-',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.red700,
+                ),
+              ),
+              pw.SizedBox(height: 16),
+            ],
             if (paymentMethod != 'Financiado') ...[
               pw.Text(
                   'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-',
@@ -454,6 +467,7 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
+    double? lifeInsuranceAmount,
   }) async {
     final pdfBytes = await generateBudgetPdf(
       context: context,
@@ -474,6 +488,7 @@ class PdfGenerator {
       amortizationSchedule: amortizationSchedule,
       validityOffer: validityOffer,
       benefits: benefits,
+      lifeInsuranceAmount: lifeInsuranceAmount,
     );
     await Printing.sharePdf(
       bytes: pdfBytes,

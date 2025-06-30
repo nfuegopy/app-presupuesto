@@ -7,6 +7,7 @@ class ClientModel {
   final String? ciudad;
   final String? departamento;
   final String createdBy; // Nuevo campo para el UID del creador
+  final String? clientType; // Nuevo: Campo para el tipo de cliente
 
   ClientModel({
     required this.id,
@@ -17,6 +18,7 @@ class ClientModel {
     this.ciudad,
     this.departamento,
     required this.createdBy,
+    this.clientType, // Nuevo: Añadido al constructor
   });
 
   factory ClientModel.fromMap(Map<String, dynamic> data, String id) {
@@ -29,6 +31,7 @@ class ClientModel {
       ciudad: data['ciudad'],
       departamento: data['departamento'],
       createdBy: data['createdBy'] ?? '',
+      clientType: data['clientType'], // Nuevo: Añadido a fromMap
     );
   }
 
@@ -42,6 +45,7 @@ class ClientModel {
       'ciudad': ciudad,
       'departamento': departamento,
       'createdBy': createdBy,
+      'clientType': clientType, // Nuevo: Añadido a toMap
     };
   }
 }

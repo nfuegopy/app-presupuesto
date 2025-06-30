@@ -17,6 +17,9 @@ class Budget {
   final double? reinforcementAmount;
   final String? validityOffer;
   final String? benefits;
+  final double?
+      lifeInsuranceAmount; // Nuevo: Campo para el monto del seguro de vida
+
   final String createdBy;
   final String createdAt;
 
@@ -37,6 +40,8 @@ class Budget {
     this.reinforcementAmount,
     this.validityOffer,
     this.benefits,
+    this.lifeInsuranceAmount, // Nuevo: Añadido al constructor
+
     required this.createdBy,
     required this.createdAt,
   });
