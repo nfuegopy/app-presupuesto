@@ -32,6 +32,7 @@ class BudgetProvider with ChangeNotifier {
   String? _reinforcementMonth;
   String? _validityOffer;
   String? _benefits;
+  double? _lifeInsuranceAmount; // Nuevo: Monto del seguro de vida
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
 
@@ -53,6 +54,7 @@ class BudgetProvider with ChangeNotifier {
   String? get reinforcementMonth => _reinforcementMonth;
   String? get validityOffer => _validityOffer;
   String? get benefits => _benefits;
+  double? get lifeInsuranceAmount => _lifeInsuranceAmount; // Nuevo getter
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
 
@@ -94,10 +96,11 @@ class BudgetProvider with ChangeNotifier {
     String? telefono,
     String? ciudad,
     String? departamento,
+    String? clientType, // Nuevo: Parámetro para el tipo de cliente
     String? selectedClientId,
   }) {
     debugPrint(
-        '[BudgetProvider] updateClient: razonSocial=$razonSocial, ruc=$ruc, selectedClientId=$selectedClientId');
+        '[BudgetProvider] updateClient: razonSocial=$razonSocial, ruc=$ruc, clientType=$clientType, selectedClientId=$selectedClientId');
     if (razonSocial.isEmpty || ruc.isEmpty) {
       _error = 'Razón Social y RUC son obligatorios.';
       notifyListeners();
@@ -116,6 +119,7 @@ class BudgetProvider with ChangeNotifier {
       ciudad: ciudad != null && ciudad.isNotEmpty ? ciudad : null,
       departamento:
           departamento != null && departamento.isNotEmpty ? departamento : null,
+      clientType: clientType, // Asignar el tipo de cliente
     );
     _selectedClientId = selectedClientId;
     _error = null;
@@ -214,13 +218,26 @@ class BudgetProvider with ChangeNotifier {
     _benefits = benefits;
     _error = null;
 
+    // Calcular seguro de vida si el cliente es 'Persona Física'
+    // Se calcula sobre el precio base del producto.
+    if (_client != null && _client!.clientType == 'Persona Física') {
+      _lifeInsuranceAmount = price * 0.03; // 3% del precio del producto
+      debugPrint(
+          '[BudgetProvider] Seguro de vida calculado: $_lifeInsuranceAmount');
+    } else {
+      _lifeInsuranceAmount = null;
+    }
+
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      double capital = price - delivery;
+      // Calcular el capital total que incluye el seguro de vida si aplica.
+      // Luego se resta la entrega para obtener el capital a financiar.
+      double effectivePrice = price + (_lifeInsuranceAmount ?? 0.0);
+      double capital = effectivePrice - delivery;
 
       debugPrint(
-          '[BudgetProvider] Calculando amortización: capital=$capital, numberOfInstallments=$numberOfInstallments');
+          '[BudgetProvider] Calculando amortización: capital (incluye seguro)=$capital, numberOfInstallments=$numberOfInstallments');
 
       _amortizationSchedule =
           AmortizationCalculator.calculateFrenchAmortization(
@@ -236,6 +253,9 @@ class BudgetProvider with ChangeNotifier {
         paymentFrequency: paymentFrequency ?? 'Mensual',
         annualNominalRate: 0.095,
       );
+
+      // NOTA: Ya no se añade el seguro de vida a la primera cuota aquí.
+      // El seguro de vida ya está incluido en el 'capital' sobre el que se calculan todas las cuotas.
 
       debugPrint(
           '[BudgetProvider] Amortización generada: ${_amortizationSchedule!.length} cuotas');
@@ -307,6 +327,7 @@ class BudgetProvider with ChangeNotifier {
             telefono: _client!.telefono,
             ciudad: _client!.ciudad,
             departamento: _client!.departamento,
+            clientType: _client!.clientType, // Guardar tipo de cliente
             createdBy: existingClientData['createdBy'],
           );
           await clientDocRef.update(updatedClientModel.toMap());
@@ -331,6 +352,7 @@ class BudgetProvider with ChangeNotifier {
             telefono: _client!.telefono,
             ciudad: _client!.ciudad,
             departamento: _client!.departamento,
+            clientType: _client!.clientType, // Guardar tipo de cliente
             createdBy: existingClientData['createdBy'],
           );
           await FirebaseFirestore.instance
@@ -348,6 +370,7 @@ class BudgetProvider with ChangeNotifier {
             telefono: _client!.telefono,
             ciudad: _client!.ciudad,
             departamento: _client!.departamento,
+            clientType: _client!.clientType, // Guardar tipo de cliente
             createdBy: user.uid,
           );
           await FirebaseFirestore.instance
@@ -375,6 +398,8 @@ class BudgetProvider with ChangeNotifier {
         reinforcementAmount: _reinforcementAmount,
         validityOffer: _validityOffer,
         benefits: _benefits,
+        lifeInsuranceAmount:
+            _lifeInsuranceAmount, // Guardar monto del seguro de vida
         createdBy: user.uid,
         createdAt: DateTime.now().toIso8601String(),
       );
@@ -426,7 +451,8 @@ class BudgetProvider with ChangeNotifier {
         'price=$_price, '
         'capital=${_price! - (_delivery ?? 0)}, '
         'numberOfInstallments=$_numberOfInstallments, '
-        'amortizationScheduleLength=${_amortizationSchedule?.length}');
+        'amortizationScheduleLength=${_amortizationSchedule?.length}, '
+        'lifeInsuranceAmount=$_lifeInsuranceAmount');
 
     try {
       final pdfBytes = await _pdfGenerator.generateBudgetPdf(
@@ -448,6 +474,8 @@ class BudgetProvider with ChangeNotifier {
         amortizationSchedule: _amortizationSchedule,
         validityOffer: _validityOffer,
         benefits: _benefits,
+        lifeInsuranceAmount:
+            _lifeInsuranceAmount, // Pasar monto del seguro de vida
       );
       _error = null;
       return pdfBytes;
@@ -501,9 +529,10 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementMonth = null;
     _validityOffer = null;
     _benefits = null;
+    _lifeInsuranceAmount = null; // Limpiar monto del seguro de vida
     _amortizationSchedule = null;
-    _error = null;
     _clients = [];
+    _error = null;
     notifyListeners();
   }
 }
