@@ -751,7 +751,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     return;
                   }
 
-                  budgetProvider.updatePaymentDetails(
+                  await budgetProvider.updatePaymentDetails(
                     currency: _currency ?? _selectedProduct!.currency,
                     price: double.tryParse(_priceController.text) ??
                         _selectedProduct!.price,

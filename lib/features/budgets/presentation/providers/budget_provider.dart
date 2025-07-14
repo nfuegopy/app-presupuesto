@@ -135,7 +135,7 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updatePaymentDetails({
+  Future<void> updatePaymentDetails({
     required String currency,
     required double price,
     required String paymentMethod,
@@ -150,7 +150,7 @@ class BudgetProvider with ChangeNotifier {
     String? reinforcementMonth,
     String? validityOffer,
     String? benefits,
-  }) {
+  }) async {
     debugPrint('[BudgetProvider] updatePaymentDetails: '
         'currency=$currency, '
         'price=$price, '
@@ -218,10 +218,8 @@ class BudgetProvider with ChangeNotifier {
     _benefits = benefits;
     _error = null;
 
-    // Calcular seguro de vida si el cliente es 'Persona Física'
-    // Se calcula sobre el precio base del producto.
     if (_client != null && _client!.clientType == 'Persona Física') {
-      _lifeInsuranceAmount = price * 0.03; // 3% del precio del producto
+      _lifeInsuranceAmount = price * 0.03;
       debugPrint(
           '[BudgetProvider] Seguro de vida calculado: $_lifeInsuranceAmount');
     } else {
@@ -231,8 +229,7 @@ class BudgetProvider with ChangeNotifier {
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      // Calcular el capital total que incluye el seguro de vida si aplica.
-      // Luego se resta la entrega para obtener el capital a financiar.
+      final double annualRate = await _fetchInterestRate();
       double effectivePrice = price + (_lifeInsuranceAmount ?? 0.0);
       double capital = effectivePrice - delivery;
 
@@ -251,11 +248,8 @@ class BudgetProvider with ChangeNotifier {
             : null,
         reinforcementMonth: reinforcementMonth,
         paymentFrequency: paymentFrequency ?? 'Mensual',
-        annualNominalRate: 0.095,
+        annualNominalRate: annualRate,
       );
-
-      // NOTA: Ya no se añade el seguro de vida a la primera cuota aquí.
-      // El seguro de vida ya está incluido en el 'capital' sobre el que se calculan todas las cuotas.
 
       debugPrint(
           '[BudgetProvider] Amortización generada: ${_amortizationSchedule!.length} cuotas');
@@ -510,6 +504,39 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
+//funcion para tomar el valor de la base de datos
+  Future<double> _fetchInterestRate() async {
+    try {
+      // Usamos el ID del documento que se ve en tu captura de pantalla
+      final doc = await FirebaseFirestore.instance
+          .collection('interes')
+          .doc('IRpKwkAvGtFuBVQZTKwe')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final interestString = data['interes'] as String; // "9,5"
+
+        // 1. Reemplazar la coma por un punto: "9,5" -> "9.5"
+        // 2. Convertir a double: "9.5" -> 9.5
+        // 3. Dividir por 100 para obtener la tasa decimal: 9.5 -> 0.095
+        final doubleRate =
+            double.parse(interestString.replaceAll(',', '.')) / 100;
+
+        debugPrint(
+            '[BudgetProvider] Tasa de interés obtenida de Firebase: $doubleRate');
+        return doubleRate;
+      }
+    } catch (e) {
+      debugPrint('Error al obtener la tasa de interés de Firebase: $e');
+    }
+
+    // Si hay un error o no se encuentra el dato, usamos la tasa por defecto
+    debugPrint('[BudgetProvider] Usando tasa de interés por defecto: 0.095');
+    return 0.095;
+  }
+
+//fin de la funcion
   void clear() {
     _client = null;
     _clientId = null;

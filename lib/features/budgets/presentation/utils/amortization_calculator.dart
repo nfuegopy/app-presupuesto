@@ -28,8 +28,14 @@ class AmortizationCalculator {
     double remainingCapital = capitalConDeducciones;
 
     // Definir monthlyRate a partir de la tasa anual del 11.62%
-    double monthlyRate = 0.095 / 12;
-    debugPrint('[AmortizationCalculator] monthlyRate=$monthlyRate');
+    // double monthlyRate = 0.095 / 12;
+    // debugPrint('[AmortizationCalculator] monthlyRate=$monthlyRate');
+
+    // Usar la tasa anual proporcionada o una por defecto si es nula.
+    double effectiveAnnualRate = annualNominalRate ?? 0.095;
+    double monthlyRate = effectiveAnnualRate / 12;
+    debugPrint(
+        '[AmortizationCalculator] Tasa Anual Efectiva: $effectiveAnnualRate, Tasa Mensual: $monthlyRate');
 
     // Calcular periodicRate según la frecuencia de pago
     double periodicRate;
