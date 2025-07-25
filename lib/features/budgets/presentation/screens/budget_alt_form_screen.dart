@@ -1,3 +1,4 @@
+// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/screens/budget_alt_form_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
@@ -12,10 +13,10 @@ import '../widgets/client_search_select.dart';
 import '../../data/models/client_model.dart';
 import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
-import '../widgets/custom_enabled_dropdown.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-import 'pdf_preview_screen.dart';
+// import 'pdf_preview_screen.dart'; // Ya no es necesario importar esta pantalla
+import '../widgets/custom_enabled_dropdown.dart';
 
 class BudgetAltFormScreen extends StatefulWidget {
   const BudgetAltFormScreen({super.key});
@@ -615,6 +616,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
               onPressed: () async {
                 if (_isLoading) return;
 
+                // --- Start Client-side Validations ---
                 if (_selectedProduct == null) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -679,11 +681,13 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     return;
                   }
                 }
+                // --- End Client-side Validations ---
 
                 setState(() {
                   _isLoading = true;
                 });
                 if (!context.mounted) return;
+                // Show loading dialog AFTER initial validations
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -797,52 +801,45 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     return;
                   }
 
+                  // START MODIFICATION: Bypass PdfPreviewScreen and directly share
                   if (!context.mounted) return;
-                  final client =
-                      await budgetProvider.getClient(budgetProvider.clientId!);
-                  if (client == null) {
-                    if (!context.mounted) return;
+                  Navigator.of(context).pop(); // Dismiss loading dialog
+                  await budgetProvider.saveAndSharePdf(context);
+                  if (!context.mounted)
+                    return; // Verificar de nuevo el contexto después de la operación asíncrona
+                  if (budgetProvider.error != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(budgetProvider.error!)),
+                    );
+                  } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content:
-                              Text('No se pudo cargar los datos del cliente.')),
+                          content: Text(
+                              'Presupuesto generado y compartido exitosamente')),
                     );
-                    return;
+                    // Opcional: Navegar de vuelta a la pantalla principal o anterior después de compartir
+                    Navigator.pop(context);
                   }
-
-                  final pdfBytes =
-                      await budgetProvider.generateBudgetPdf(context);
-                  if (!context.mounted) return;
-                  Navigator.of(context).pop(); // Cerrar diálogo de carga
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PdfPreviewScreen(
-                        pdfBytes: pdfBytes,
-                        onShare: () async {
-                          await budgetProvider.saveAndSharePdf(context);
-                          if (!context.mounted) return;
-                          if (budgetProvider.error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(budgetProvider.error!)),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'Presupuesto generado y compartido')),
-                            );
-                          }
-                        },
-                        fileName:
-                            'presupuesto_${client.razonSocial}_${DateTime.now().toIso8601String()}.pdf',
-                      ),
-                    ),
-                  );
+                  // END MODIFICATION
+                } catch (e) {
+                  // Captura cualquier error inesperado durante las operaciones asíncronas
+                  debugPrint('Unexpected error during budget generation: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(
+                              'Ocurrió un error inesperado al generar el presupuesto: ${e.toString().replaceFirst('Exception: ', '')}')),
+                    );
+                  }
                 } finally {
                   setState(() {
                     _isLoading = false;
                   });
+                  // Asegurar que el diálogo de carga se cierre en caso de un error antes de la navegación
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context)
+                        .pop(); // Cerrar diálogo de carga si sigue abierto
+                  }
                 }
               },
             ),
