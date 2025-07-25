@@ -1,4 +1,5 @@
-// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/screens/budget_alt_form_screen.dart
+// budgets/presentation/screens/budget_alt_form_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
@@ -15,8 +16,9 @@ import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-// import 'pdf_preview_screen.dart'; // Ya no es necesario importar esta pantalla
+import 'pdf_preview_screen.dart'; // Importa la pantalla de previsualización
 import '../widgets/custom_enabled_dropdown.dart';
+import 'package:printing/printing.dart';
 
 class BudgetAltFormScreen extends StatefulWidget {
   const BudgetAltFormScreen({super.key});
@@ -748,11 +750,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   }
 
                   if (budgetProvider.error != null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                    return;
+                    throw Exception(budgetProvider.error);
                   }
 
                   await budgetProvider.updatePaymentDetails(
@@ -785,46 +783,57 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                   );
 
                   if (budgetProvider.error != null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                    return;
+                    throw Exception(budgetProvider.error);
                   }
 
                   await budgetProvider.createBudget();
                   if (budgetProvider.error != null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                    return;
+                    throw Exception(budgetProvider.error);
                   }
 
-                  // START MODIFICATION: Bypass PdfPreviewScreen and directly share
+                  // START MODIFICATION: Navigate to PdfPreviewScreen
                   if (!context.mounted) return;
-                  Navigator.of(context).pop(); // Dismiss loading dialog
-                  await budgetProvider.saveAndSharePdf(context);
-                  if (!context.mounted)
-                    return; // Verificar de nuevo el contexto después de la operación asíncrona
+
+                  final pdfBytes =
+                      await budgetProvider.generateBudgetPdf(context);
+
                   if (budgetProvider.error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Presupuesto generado y compartido exitosamente')),
-                    );
-                    // Opcional: Navegar de vuelta a la pantalla principal o anterior después de compartir
-                    Navigator.pop(context);
+                    throw Exception(budgetProvider.error);
                   }
+
+                  if (context.mounted)
+                    Navigator.of(context).pop(); // Dismiss loading dialog
+
+                  final client =
+                      await budgetProvider.getClient(budgetProvider.clientId!);
+                  final fileName =
+                      'presupuesto_${client?.razonSocial ?? "cliente"}_${DateTime.now().toIso8601String()}.pdf';
+
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PdfPreviewScreen(
+                        pdfBytes: pdfBytes,
+                        fileName: fileName,
+                        onShare: () {
+                          Printing.sharePdf(
+                            bytes: pdfBytes,
+                            filename: fileName,
+                          );
+                        },
+                      ),
+                    ),
+                  ).then((_) {
+                    Navigator.pop(context);
+                  });
                   // END MODIFICATION
                 } catch (e) {
                   // Captura cualquier error inesperado durante las operaciones asíncronas
                   debugPrint('Unexpected error during budget generation: $e');
                   if (context.mounted) {
+                    Navigator.of(context)
+                        .pop(); // Dismiss loading dialog on error
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                           content: Text(
@@ -832,13 +841,10 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     );
                   }
                 } finally {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                  // Asegurar que el diálogo de carga se cierre en caso de un error antes de la navegación
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context)
-                        .pop(); // Cerrar diálogo de carga si sigue abierto
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                    });
                   }
                 }
               },
