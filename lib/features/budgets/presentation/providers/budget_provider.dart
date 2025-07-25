@@ -1,3 +1,4 @@
+// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/providers/budget_provider.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -400,10 +401,11 @@ class BudgetProvider with ChangeNotifier {
 
       await _createBudget(budget);
       _error = null;
+
+      // Recargar la lista de clientes después de crear/actualizar uno
+      await loadClientsByVendor();
     } catch (e) {
       _error = 'Error al guardar el presupuesto: $e';
-      notifyListeners();
-      return;
     }
     notifyListeners();
   }
@@ -471,6 +473,10 @@ class BudgetProvider with ChangeNotifier {
         lifeInsuranceAmount:
             _lifeInsuranceAmount, // Pasar monto del seguro de vida
       );
+      // START MODIFICATION
+      debugPrint(
+          '[BudgetProvider] PDF generated with ${pdfBytes.length} bytes.');
+      // END MODIFICATION
       _error = null;
       return pdfBytes;
     } catch (e) {

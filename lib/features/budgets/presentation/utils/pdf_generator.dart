@@ -1,3 +1,4 @@
+// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/utils/pdf_generator.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -8,6 +9,7 @@ import '../../data/models/client_model.dart';
 import '../../../products/domain/entities/product.dart';
 import '../utils/amortization_calculator.dart';
 import 'dart:math';
+import 'package:flutter/services.dart' show rootBundle; // Import for rootBundle
 
 class PdfGenerator {
   Future<Uint8List> generateBudgetPdf({
@@ -34,6 +36,14 @@ class PdfGenerator {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
         .then((byteData) => byteData.buffer.asUint8List());
+
+    // START MODIFICATION: Load Poppins fonts
+    final fontData = await rootBundle.load("assets/fonts/Poppins-Regular.ttf");
+    final ttf = pw.Font.ttf(fontData);
+
+    final fontBoldData = await rootBundle.load("assets/fonts/Poppins-Bold.ttf");
+    final ttfBold = pw.Font.ttf(fontBoldData);
+    // END MODIFICATION
 
     Uint8List? productImageData;
     if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
@@ -185,6 +195,12 @@ class PdfGenerator {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
+        // START MODIFICATION: Set default font for the document using pw.ThemeData.withFont
+        theme: pw.ThemeData.withFont(
+          base: ttf,
+          bold: ttfBold,
+        ),
+        // END MODIFICATION
         header: (pw.Context context) {
           return pw.Column(
             children: [
@@ -364,17 +380,17 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 16),
             ],
-            if (lifeInsuranceAmount != null && lifeInsuranceAmount > 0) ...[
-              pw.Text(
-                'Seguro de Vida: $currency ${lifeInsuranceAmount.toStringAsFixed(2)}.-',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.red700,
-                ),
-              ),
-              pw.SizedBox(height: 16),
-            ],
+            // if (lifeInsuranceAmount != null && lifeInsuranceAmount > 0) ...[
+            //   pw.Text(
+            //     'Seguro de Vida: $currency ${lifeInsuranceAmount.toStringAsFixed(2)}.-',
+            //     style: pw.TextStyle(
+            //       fontSize: 14,
+            //       fontWeight: pw.FontWeight.bold,
+            //       color: PdfColors.red700,
+            //     ),
+            //   ),
+            //   pw.SizedBox(height: 16),
+            // ],
             if (paymentMethod != 'Financiado') ...[
               pw.Text(
                   'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-',
