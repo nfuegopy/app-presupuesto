@@ -1,4 +1,5 @@
-// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/screens/budget_form_screen.dart
+// budgets/presentation/screens/budget_form_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
@@ -15,7 +16,8 @@ import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
-// import 'pdf_preview_screen.dart'; // Ya no es necesario importar esta pantalla
+import 'pdf_preview_screen.dart'; // Importa la pantalla de previsualización
+import 'package:printing/printing.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -724,37 +726,17 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   }
 
                   if (budgetProvider.error != null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                    return;
+                    throw Exception(budgetProvider.error);
                   }
 
                   final delivery = _deliveryController.text.isNotEmpty
                       ? double.parse(_deliveryController.text)
                       : 0.0;
-                  final capital = price - delivery;
+
                   final numberOfInstallments =
                       _numberOfInstallmentsController.text.isNotEmpty
                           ? int.parse(_numberOfInstallmentsController.text)
                           : null;
-
-                  debugPrint(
-                      '[BudgetFormScreen] Enviando a BudgetProvider.updatePaymentDetails: '
-                      'currency=${_currency ?? widget.product.currency}, '
-                      'price=$price, '
-                      'capital=$capital, '
-                      'delivery=$delivery, '
-                      'numberOfInstallments=$numberOfInstallments, '
-                      'paymentMethod=${_paymentMethod ?? 'Contado'}, '
-                      'financingType=$_financingType, '
-                      'paymentFrequency=$_paymentFrequency, '
-                      'hasReinforcements=$_hasReinforcements, '
-                      'reinforcementFrequency=$_reinforcementFrequency, '
-                      'numberOfReinforcements=${_numberOfReinforcementsController.text.isNotEmpty ? int.parse(_numberOfReinforcementsController.text) : null}, '
-                      'reinforcementAmount=${_reinforcementAmountController.text.isNotEmpty ? double.parse(_reinforcementAmountController.text) : null}, '
-                      'reinforcementMonth=$_reinforcementMonth');
 
                   await budgetProvider.updatePaymentDetails(
                     currency: _currency ?? widget.product.currency,
@@ -780,62 +762,69 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   );
 
                   if (budgetProvider.error != null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                    return;
+                    throw Exception(budgetProvider.error);
                   }
 
                   debugPrint(
                       '[BudgetFormScreen] Llamando a BudgetProvider.createBudget');
                   await budgetProvider.createBudget();
                   if (budgetProvider.error != null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                    return;
+                    throw Exception(budgetProvider.error);
                   }
 
-                  // START MODIFICATION: Bypass PdfPreviewScreen and directly share
+                  // START MODIFICATION: Navigate to PdfPreviewScreen
                   if (!context.mounted) return;
-                  Navigator.of(context).pop(); // Dismiss loading dialog
-                  await budgetProvider.saveAndSharePdf(context);
-                  if (!context.mounted)
-                    return; // Check again after async operation
+
+                  final pdfBytes =
+                      await budgetProvider.generateBudgetPdf(context);
+
                   if (budgetProvider.error != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(budgetProvider.error!)),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Presupuesto generado y compartido exitosamente')),
-                    );
-                    // Opcional: Navegar de vuelta a la pantalla principal o anterior después de compartir
-                    Navigator.pop(context);
+                    throw Exception(budgetProvider.error);
                   }
+
+                  if (context.mounted)
+                    Navigator.of(context).pop(); // Dismiss loading dialog
+
+                  final client =
+                      await budgetProvider.getClient(budgetProvider.clientId!);
+                  final fileName =
+                      'presupuesto_${client?.razonSocial ?? "cliente"}_${DateTime.now().toIso8601String()}.pdf';
+
+                  if (!context.mounted) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PdfPreviewScreen(
+                        pdfBytes: pdfBytes,
+                        fileName: fileName,
+                        onShare: () {
+                          Printing.sharePdf(
+                            bytes: pdfBytes,
+                            filename: fileName,
+                          );
+                        },
+                      ),
+                    ),
+                  ).then((_) {
+                    Navigator.pop(context);
+                  });
                   // END MODIFICATION
                 } catch (e) {
-                  // Captura cualquier error inesperado durante las operaciones asíncronas
                   debugPrint('Unexpected error during budget generation: $e');
                   if (context.mounted) {
+                    Navigator.of(context)
+                        .pop(); // Dismiss loading dialog on error
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                           content: Text(
-                              'Ocurrió un error inesperado al generar el presupuesto: ${e.toString().replaceFirst('Exception: ', '')}')),
+                              'Ocurrió un error al generar el presupuesto: ${e.toString().replaceFirst('Exception: ', '')}')),
                     );
                   }
                 } finally {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                  // Asegurar que el diálogo de carga se cierre en caso de un error antes de la navegación
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context)
-                        .pop(); // Cerrar diálogo de carga si sigue abierto
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                    });
                   }
                 }
               },
