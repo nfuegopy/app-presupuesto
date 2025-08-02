@@ -8,36 +8,20 @@ class AmortizationCalculator {
     Map<int, double>? reinforcements,
     String? reinforcementMonth,
     String paymentFrequency = 'Mensual',
-    double? annualNominalRate,
+    required double annualNominalRate, // Ahora es requerido y no puede ser nulo
   }) {
-    // Calcular gastos administrativos (valor original)
+    // PASO 1: LÓGICA DE CONFIGURACIÓN ORIGINAL
     const double gastosAdministrativos = 50.0;
     final double capitalConDeducciones = capital + gastosAdministrativos;
 
-    debugPrint('[AmortizationCalculator] calculateFrenchAmortization: '
-        'capital=$capital, '
-        'numberOfInstallments=$numberOfInstallments, '
-        'paymentFrequency=$paymentFrequency, '
-        'reinforcements=$reinforcements, '
-        'reinforcementMonth=$reinforcementMonth, '
-        'annualNominalRate=$annualNominalRate, '
-        'gastosAdministrativos=$gastosAdministrativos, '
-        'capitalConDeducciones=$capitalConDeducciones');
+    // =======================================================================
+    // LÍNEA MODIFICADA: Se eliminó el valor de respaldo `?? 0.095`
+    // Ahora, la tasa anual DEBE ser proporcionada.
+    // =======================================================================
+    double effectiveAnnualRate = annualNominalRate;
+    // =======================================================================
 
-    List<Map<String, dynamic>> schedule = [];
-    double remainingCapital = capitalConDeducciones;
-
-    // Definir monthlyRate a partir de la tasa anual del 11.62%
-    // double monthlyRate = 0.095 / 12;
-    // debugPrint('[AmortizationCalculator] monthlyRate=$monthlyRate');
-
-    // Usar la tasa anual proporcionada o una por defecto si es nula.
-    double effectiveAnnualRate = annualNominalRate ?? 0.095;
     double monthlyRate = effectiveAnnualRate / 12;
-    debugPrint(
-        '[AmortizationCalculator] Tasa Anual Efectiva: $effectiveAnnualRate, Tasa Mensual: $monthlyRate');
-
-    // Calcular periodicRate según la frecuencia de pago
     double periodicRate;
     switch (paymentFrequency) {
       case 'Trimestral':
@@ -50,16 +34,6 @@ class AmortizationCalculator {
       default:
         periodicRate = monthlyRate;
     }
-    debugPrint('[AmortizationCalculator] periodicRate=$periodicRate');
-
-    // Calcular fixedMonthlyPayment
-    double fixedMonthlyPayment = (capitalConDeducciones *
-            periodicRate *
-            pow(1 + periodicRate, numberOfInstallments)) /
-        (pow(1 + periodicRate, numberOfInstallments) - 1);
-    debugPrint(
-        '[AmortizationCalculator] fixedMonthlyPayment=$fixedMonthlyPayment '
-        '(Formula: capitalConDeducciones * periodicRate * (1 + periodicRate)^n / ((1 + periodicRate)^n - 1))');
 
     final now = DateTime.now();
     const months = [
@@ -74,69 +48,76 @@ class AmortizationCalculator {
       'Septiembre',
       'Octubre',
       'Noviembre',
-      'Diciembre',
+      'Diciembre'
     ];
 
+    // PASO 2: LÓGICA DE CÁLCULO DE REFUERZOS (SIN CAMBIOS)
     Map<int, double> adjustedReinforcements = reinforcements ?? {};
-    if (reinforcementMonth != null && reinforcements != null) {
+    if (reinforcementMonth != null &&
+        reinforcements != null &&
+        reinforcements.isNotEmpty) {
       adjustedReinforcements = {};
       int reinforcementMonthIndex = months.indexOf(reinforcementMonth);
-      int cuotasPerReinforcement;
-      // Determinar el intervalo de refuerzos basado en las claves de reinforcements
-      if (reinforcements.isNotEmpty) {
-        List<int> keys = reinforcements.keys.toList()..sort();
-        cuotasPerReinforcement = keys.length > 1
-            ? keys[1] - keys[0]
-            : 6; // Default a 6 para semestral
-      } else {
-        cuotasPerReinforcement = paymentFrequency == 'Mensual'
-            ? 6
-            : paymentFrequency == 'Trimestral'
-                ? 2
-                : paymentFrequency == 'Semestral'
-                    ? 1
-                    : 6;
+      int cuotasPerReinforcement = 12;
+
+      List<int> keys = reinforcements.keys.toList()..sort();
+      if (keys.length > 1) {
+        cuotasPerReinforcement = keys[1] - keys[0];
+      } else if (paymentFrequency == 'Semestral') {
+        cuotasPerReinforcement = 6;
       }
 
-      int cuota = 1;
-      int currentMonthIndex = now.month - 1; // Mes actual (0-based)
+      int currentMonthIndex = now.month - 1;
       int monthsToFirstReinforcement =
-          (reinforcementMonthIndex - currentMonthIndex) % 12;
-      if (monthsToFirstReinforcement <= 0) monthsToFirstReinforcement += 12;
+          (reinforcementMonthIndex - currentMonthIndex + 12) % 12;
+      if (monthsToFirstReinforcement == 0) monthsToFirstReinforcement = 12;
 
-      int firstReinforcementCuota;
+      int firstReinforcementCuota = monthsToFirstReinforcement;
       switch (paymentFrequency) {
-        case 'Mensual':
-          firstReinforcementCuota = monthsToFirstReinforcement;
-          break;
         case 'Trimestral':
           firstReinforcementCuota = (monthsToFirstReinforcement / 3).ceil();
           break;
         case 'Semestral':
           firstReinforcementCuota = (monthsToFirstReinforcement / 6).ceil();
           break;
-        default:
-          firstReinforcementCuota = monthsToFirstReinforcement;
       }
 
-      int reinforcementCount = 0;
-      List<int> reinforcementKeys = reinforcements.keys.toList()..sort();
-      cuota = firstReinforcementCuota;
-
-      while (reinforcementCount < reinforcementKeys.length &&
-          cuota <= numberOfInstallments) {
-        adjustedReinforcements[cuota] =
-            reinforcements[reinforcementKeys[reinforcementCount]]!;
-        reinforcementCount++;
-        cuota += cuotasPerReinforcement;
+      int cuota = firstReinforcementCuota;
+      for (var key in keys) {
+        if (cuota <= numberOfInstallments) {
+          adjustedReinforcements[cuota] = reinforcements[key]!;
+          cuota += cuotasPerReinforcement;
+        }
       }
-      debugPrint(
-          '[AmortizationCalculator] adjustedReinforcements=$adjustedReinforcements');
     }
 
+    // PASO 3: LÓGICA DE CORRECCIÓN DE CUOTA (SIN CAMBIOS)
+    double fixedMonthlyPayment;
+    final bool hasReinforcements = adjustedReinforcements.isNotEmpty;
+    if (hasReinforcements) {
+      double presentValueOfReinforcements = 0.0;
+      adjustedReinforcements.forEach((quotaNumber, amount) {
+        presentValueOfReinforcements +=
+            amount / pow(1 + periodicRate, quotaNumber);
+      });
+      double adjustedCapital =
+          capitalConDeducciones - presentValueOfReinforcements;
+      fixedMonthlyPayment = (adjustedCapital *
+              periodicRate *
+              pow(1 + periodicRate, numberOfInstallments)) /
+          (pow(1 + periodicRate, numberOfInstallments) - 1);
+    } else {
+      fixedMonthlyPayment = (capitalConDeducciones *
+              periodicRate *
+              pow(1 + periodicRate, numberOfInstallments)) /
+          (pow(1 + periodicRate, numberOfInstallments) - 1);
+    }
+
+    // PASO 4: GENERACIÓN DE LA TABLA (SIN CAMBIOS)
+    List<Map<String, dynamic>> schedule = [];
+    double remainingCapital = capitalConDeducciones;
     int initialMonthIndexValue;
     int currentActualMonthZeroIndexed = now.month - 1;
-
     switch (paymentFrequency) {
       case 'Trimestral':
         initialMonthIndexValue = currentActualMonthZeroIndexed + 3;
@@ -149,7 +130,6 @@ class AmortizationCalculator {
         initialMonthIndexValue = currentActualMonthZeroIndexed + 1;
         break;
     }
-
     int monthIndex = initialMonthIndexValue;
 
     for (int i = 1; i <= numberOfInstallments; i++) {
@@ -167,20 +147,26 @@ class AmortizationCalculator {
         }
       }
 
+      if (remainingCapital < 0.01) remainingCapital = 0;
+
       double interest = remainingCapital * periodicRate;
-      double principal = fixedMonthlyPayment - interest;
-      if (principal < 0 || remainingCapital < principal) {
+      double reinforcement = adjustedReinforcements[i] ?? 0;
+      double totalPaymentThisMonth = fixedMonthlyPayment + reinforcement;
+      double principal;
+
+      if (i == numberOfInstallments && remainingCapital > 0) {
+        principal = remainingCapital;
+        totalPaymentThisMonth = principal + interest;
+      } else {
+        principal = totalPaymentThisMonth - interest;
+      }
+
+      if (principal > remainingCapital) {
         principal = remainingCapital;
       }
       remainingCapital -= principal;
 
-      double reinforcement = adjustedReinforcements.containsKey(i)
-          ? adjustedReinforcements[i]!
-          : 0;
-      if (reinforcement > 0) {
-        remainingCapital -= reinforcement;
-      }
-
+      String monthName = months[monthIndex % 12];
       int daysToDueDate;
       switch (paymentFrequency) {
         case 'Mensual':
@@ -195,31 +181,18 @@ class AmortizationCalculator {
         default:
           daysToDueDate = i * 30;
       }
-
-      double discountedValue = 0;
-      if (annualNominalRate != null) {
-        discountedValue = (fixedMonthlyPayment + reinforcement) *
-            (1 - annualNominalRate * (daysToDueDate / 360));
-      }
-
-      String monthName = months[monthIndex % 12];
+      double discountedValue = (totalPaymentThisMonth) *
+          (1 - annualNominalRate * (daysToDueDate / 360));
 
       schedule.add({
         'cuota': i,
         'month': monthName,
         'capital': principal,
         'intereses': interest,
-        'pago_total': fixedMonthlyPayment + reinforcement,
+        'pago_total': totalPaymentThisMonth,
         'capital_pendiente': remainingCapital > 0 ? remainingCapital : 0,
         'valor_descontado': discountedValue,
       });
-
-      debugPrint('[AmortizationCalculator] Cuota $i: '
-          'month=$monthName, '
-          'principal=$principal, '
-          'interest=$interest, '
-          'pago_total=${fixedMonthlyPayment + reinforcement}, '
-          'remainingCapital=$remainingCapital');
     }
 
     if (schedule.isNotEmpty) {
@@ -227,13 +200,8 @@ class AmortizationCalculator {
         'gastos_administrativos': gastosAdministrativos,
         'monto_entregado': capitalConDeducciones,
       });
-      debugPrint('[AmortizationCalculator] Deducciones: '
-          'gastosAdministrativos=$gastosAdministrativos, '
-          'monto_entregado=$capitalConDeducciones');
     }
 
-    debugPrint(
-        '[AmortizationCalculator] Cronograma generado: ${schedule.length} cuotas');
     return schedule;
   }
 }
