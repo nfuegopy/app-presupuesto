@@ -1,4 +1,3 @@
-// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/utils/pdf_generator.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -93,6 +92,9 @@ class PdfGenerator {
     ];
     final formattedDate =
         'Asunción, ${now.day} de ${months[now.month - 1]} del ${now.year}';
+
+    // AJUSTE: Definición del color rojo
+    const PdfColor redColor = PdfColor.fromInt(0xffE30613);
 
     List<List<String>> financingPlans = [];
     List<Map<String, dynamic>> schedule = amortizationSchedule ?? [];
@@ -195,12 +197,10 @@ class PdfGenerator {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        // START MODIFICATION: Set default font for the document using pw.ThemeData.withFont
         theme: pw.ThemeData.withFont(
           base: ttf,
           bold: ttfBold,
         ),
-        // END MODIFICATION
         header: (pw.Context context) {
           return pw.Column(
             children: [
@@ -245,7 +245,6 @@ class PdfGenerator {
             totalToPay += (delivery ?? 0);
           }
 
-          // Preparar las cuotas en columnas (máximo 24 cuotas por columna)
           List<List<List<String>>> scheduleColumns = [];
           const int maxRowsPerColumn = 24;
           int numberOfColumns = (schedule.length / maxRowsPerColumn).ceil();
@@ -273,34 +272,40 @@ class PdfGenerator {
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.black)),
             pw.SizedBox(height: 16),
+            // AJUSTE: Texto "(1) Una" modificado
             pw.Text(
-              'Por el presente nos dirigimos a usted a modo de presentar la cotización por el siguiente producto: (1) Una ${product.name}',
+              'Por el presente nos dirigimos a usted a modo de presentar la cotización por el siguiente producto: (1) ${product.name}',
               style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800),
             ),
             pw.SizedBox(height: 16),
+            // AJUSTE: Color rojo aplicado
             pw.Text('MAQUINARIA',
                 style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue800)),
+                    color: redColor)),
             pw.SizedBox(height: 8),
             pw.Text('Retropala ${product.name}',
                 style: pw.TextStyle(fontSize: 14)),
             pw.SizedBox(height: 8),
             if (descriptionImageData != null) ...[
-              pw.Image(pw.MemoryImage(descriptionImageData),
-                  width: 400, height: 300, fit: pw.BoxFit.contain),
+              // AJUSTE: Imagen centrada
+              pw.Center(
+                child: pw.Image(pw.MemoryImage(descriptionImageData),
+                    width: 400, height: 300, fit: pw.BoxFit.contain),
+              ),
               pw.SizedBox(height: 12),
             ],
             pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
             pw.SizedBox(height: 16),
             if (financingPlans.isNotEmpty) ...[
+              // AJUSTE: Color rojo aplicado
               pw.Text('FINANCIACIÓN',
                   style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue800)),
+                      color: redColor)),
               pw.SizedBox(height: 8),
               pw.Text('PLAN DE FINANCIACIÓN $currency',
                   style: pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
@@ -322,8 +327,8 @@ class PdfGenerator {
                 cellStyle: pw.TextStyle(fontSize: 9, color: PdfColors.black),
                 cellAlignment: pw.Alignment.center,
                 cellPadding: const pw.EdgeInsets.all(4),
-                headerDecoration:
-                    const pw.BoxDecoration(color: PdfColors.blue800),
+                // AJUSTE: Color rojo aplicado
+                headerDecoration: const pw.BoxDecoration(color: redColor),
                 cellDecoration: (index, data, rowNum) => const pw.BoxDecoration(
                     border: pw.Border(
                         bottom: pw.BorderSide(color: PdfColors.grey300))),
@@ -339,11 +344,12 @@ class PdfGenerator {
               pw.SizedBox(height: 16),
             ],
             if (paymentMethod == 'Financiado' && schedule.isNotEmpty) ...[
+              // AJUSTE: Color rojo aplicado
               pw.Text('CRONOGRAMA DE CUOTAS',
                   style: pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue800)),
+                      color: redColor)),
               pw.SizedBox(height: 8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.start,
@@ -362,8 +368,8 @@ class PdfGenerator {
                           pw.TextStyle(fontSize: 9, color: PdfColors.black),
                       cellAlignment: pw.Alignment.center,
                       cellPadding: const pw.EdgeInsets.all(4),
-                      headerDecoration:
-                          const pw.BoxDecoration(color: PdfColors.blue800),
+                      // AJUSTE: Color rojo aplicado
+                      headerDecoration: const pw.BoxDecoration(color: redColor),
                       cellDecoration: (index, data, rowNum) =>
                           const pw.BoxDecoration(
                               border: pw.Border(
@@ -380,17 +386,8 @@ class PdfGenerator {
               ),
               pw.SizedBox(height: 16),
             ],
-            // if (lifeInsuranceAmount != null && lifeInsuranceAmount > 0) ...[
-            //   pw.Text(
-            //     'Seguro de Vida: $currency ${lifeInsuranceAmount.toStringAsFixed(2)}.-',
-            //     style: pw.TextStyle(
-            //       fontSize: 14,
-            //       fontWeight: pw.FontWeight.bold,
-            //       color: PdfColors.red700,
-            //     ),
-            //   ),
-            //   pw.SizedBox(height: 16),
-            // ],
+            // Seguro de vida comentado, como en el original
+            // if (lifeInsuranceAmount != null && lifeInsuranceAmount > 0) ...[ ... ],
             if (paymentMethod != 'Financiado') ...[
               pw.Text(
                   'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-',
@@ -401,8 +398,11 @@ class PdfGenerator {
               pw.SizedBox(height: 16),
             ],
             if (productImageData != null) ...[
-              pw.Image(pw.MemoryImage(productImageData),
-                  width: 400, height: 200, fit: pw.BoxFit.contain),
+              // AJUSTE: Imagen centrada
+              pw.Center(
+                child: pw.Image(pw.MemoryImage(productImageData),
+                    width: 400, height: 200, fit: pw.BoxFit.contain),
+              ),
               pw.SizedBox(height: 16),
             ],
             if (validityOffer != null && validityOffer.isNotEmpty) ...[
@@ -417,11 +417,12 @@ class PdfGenerator {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
+                    // AJUSTE: Color rojo aplicado
                     pw.Text('Validez de la Oferta',
                         style: pw.TextStyle(
                             fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue800)),
+                            color: redColor)),
                     pw.SizedBox(height: 4),
                     pw.Text(validityOffer,
                         style: pw.TextStyle(
@@ -443,11 +444,12 @@ class PdfGenerator {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
+                    // AJUSTE: Color rojo aplicado
                     pw.Text('Beneficios',
                         style: pw.TextStyle(
                             fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue800)),
+                            color: redColor)),
                     pw.SizedBox(height: 4),
                     pw.Text(benefits,
                         style: pw.TextStyle(
@@ -485,6 +487,7 @@ class PdfGenerator {
     String? benefits,
     double? lifeInsuranceAmount,
   }) async {
+    // La llamada a generateBudgetPdf se mantiene tal cual, sin agregar annualNominalRate
     final pdfBytes = await generateBudgetPdf(
       context: context,
       client: client,
