@@ -30,7 +30,7 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
-    double? lifeInsuranceAmount, // Nuevo: Monto del seguro de vida
+    double? lifeInsuranceAmount,
   }) async {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
@@ -191,23 +191,35 @@ class PdfGenerator {
         margin: const pw.EdgeInsets.all(40),
         theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
         header: (pw.Context context) {
+          // AJUSTE: No mostrar el header en la primera página para evitar duplicar el logo
+          if (context.pageNumber == 1) {
+            return pw.Container();
+          }
           return pw.Column(
             children: [
-              pw.Image(pw.MemoryImage(logoData), width: 100, height: 100),
+              pw.Center(
+                  child: pw.Image(pw.MemoryImage(logoData),
+                      width: 100, height: 100)),
               pw.SizedBox(height: 12),
-              pw.Container(
-                alignment: pw.Alignment.centerRight,
-                margin: const pw.EdgeInsets.only(bottom: 16),
-                child: pw.Text(formattedDate,
-                    style:
-                        pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
-              ),
             ],
           );
         },
-        // AJUSTE: Footer eliminado
         footer: (pw.Context context) {
-          return pw.Container(); // Devuelve un contenedor vacío
+          // Pie de página restaurado
+          return pw.Container(
+            alignment: pw.Alignment.center,
+            margin: const pw.EdgeInsets.only(top: 16),
+            child: pw.Column(
+              children: [
+                pw.Text('Tajy, B° Arecaya - Mariano Roque Alonso',
+                    style:
+                        pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                pw.Text('www.enginepy.com',
+                    style:
+                        pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+              ],
+            ),
+          );
         },
         build: (pw.Context context) {
           List<List<List<String>>> scheduleColumns = [];
@@ -228,9 +240,19 @@ class PdfGenerator {
             scheduleColumns.add(columnData);
           }
 
-          return [
-            // AJUSTE: Texto "Señor/es"
-            pw.Text('Señor/es',
+          final pageOneWidgets = <pw.Widget>[
+            // AJUSTE: Logo centrado para la primera página
+            pw.Center(
+                child: pw.Image(pw.MemoryImage(logoData),
+                    width: 100, height: 100)),
+            pw.SizedBox(height: 12),
+            pw.Container(
+              alignment: pw.Alignment.centerRight,
+              margin: const pw.EdgeInsets.only(bottom: 16),
+              child: pw.Text(formattedDate,
+                  style: pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
+            ),
+            pw.Text('Señor/es:',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800)),
             pw.Text(client.razonSocial,
                 style: pw.TextStyle(
@@ -249,7 +271,6 @@ class PdfGenerator {
                     fontWeight: pw.FontWeight.bold,
                     color: redColor)),
             pw.SizedBox(height: 8),
-            // AJUSTE: "Retropala" eliminado
             pw.Text(product.name, style: pw.TextStyle(fontSize: 14)),
             pw.SizedBox(height: 8),
             if (descriptionImageData != null) ...[
@@ -301,25 +322,25 @@ class PdfGenerator {
                   5: pw.FixedColumnWidth(70)
                 },
               ),
-              pw.SizedBox(height: 16),
             ],
-            if (paymentMethod == 'Financiado' && schedule.isNotEmpty) ...[
-              pw.Text('CRONOGRAMA DE CUOTAS',
-                  style: pw.TextStyle(
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                      color: redColor)),
-              pw.SizedBox(height: 8),
-              // AJUSTE: Cronograma de cuotas centrado
+          ];
+
+          final pageTwoWidgets = <pw.Widget>[];
+          if (paymentMethod == 'Financiado' && schedule.isNotEmpty) {
+            pageTwoWidgets.add(pw.Text('CRONOGRAMA DE CUOTAS',
+                style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: redColor)));
+            pageTwoWidgets.add(pw.SizedBox(height: 8));
+            pageTwoWidgets.add(
               pw.Center(
                 child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment
-                      .center, // Centra las columnas horizontalmente
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: scheduleColumns.map((columnData) {
                     return pw.Padding(
-                      padding: const pw.EdgeInsets.symmetric(
-                          horizontal: 5), // Espacio entre columnas
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 5),
                       child: pw.Table.fromTextArray(
                         headers: ['Cuota', 'Mes', 'Monto'],
                         data: columnData,
@@ -348,13 +369,15 @@ class PdfGenerator {
                   }).toList(),
                 ),
               ),
-              pw.SizedBox(height: 16),
-            ],
-            // AJUSTE: Beneficios movido a después de las cuotas y centrado
-            if (benefits != null && benefits.isNotEmpty) ...[
+            );
+          }
+
+          final pageThreeWidgets = <pw.Widget>[];
+          if (benefits != null && benefits.isNotEmpty) {
+            pageThreeWidgets.add(
               pw.Center(
                 child: pw.Container(
-                  width: 400, // Ancho fijo para que el centrado funcione bien
+                  width: 400,
                   padding: const pw.EdgeInsets.all(8),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey100,
@@ -378,27 +401,20 @@ class PdfGenerator {
                   ),
                 ),
               ),
-              pw.SizedBox(height: 12),
-            ],
-            if (paymentMethod != 'Financiado') ...[
-              pw.Text('Total a Abonar: $currency ${price.toStringAsFixed(2)}.-',
-                  style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.black)),
-              pw.SizedBox(height: 16),
-            ],
-            if (productImageData != null) ...[
-              pw.Center(
-                  child: pw.Image(pw.MemoryImage(productImageData),
-                      width: 400, height: 200, fit: pw.BoxFit.contain)),
-              pw.SizedBox(height: 16),
-            ],
-            // AJUSTE: Validez de la oferta centrado
-            if (validityOffer != null && validityOffer.isNotEmpty) ...[
+            );
+            pageThreeWidgets.add(pw.SizedBox(height: 12));
+          }
+          if (productImageData != null) {
+            pageThreeWidgets.add(pw.Center(
+                child: pw.Image(pw.MemoryImage(productImageData),
+                    width: 400, height: 200, fit: pw.BoxFit.contain)));
+            pageThreeWidgets.add(pw.SizedBox(height: 16));
+          }
+          if (validityOffer != null && validityOffer.isNotEmpty) {
+            pageThreeWidgets.add(
               pw.Center(
                 child: pw.Container(
-                  width: 400, // Ancho fijo para que el centrado funcione bien
+                  width: 400,
                   padding: const pw.EdgeInsets.all(8),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey100,
@@ -422,8 +438,16 @@ class PdfGenerator {
                   ),
                 ),
               ),
-              pw.SizedBox(height: 12),
-            ],
+            );
+            pageThreeWidgets.add(pw.SizedBox(height: 12));
+          }
+
+          return [
+            ...pageOneWidgets,
+            if (pageTwoWidgets.isNotEmpty) pw.NewPage(),
+            ...pageTwoWidgets,
+            if (pageThreeWidgets.isNotEmpty) pw.NewPage(),
+            ...pageThreeWidgets,
           ];
         },
       ),
