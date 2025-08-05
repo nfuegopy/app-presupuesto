@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="app_presupuesto"
+        android:label="Engine S.A"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

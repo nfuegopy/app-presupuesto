@@ -1,6 +1,6 @@
 name: Engine_S.A
 description: App de Presupuestos.
-version: 2.5.2
+version: 2.5.3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

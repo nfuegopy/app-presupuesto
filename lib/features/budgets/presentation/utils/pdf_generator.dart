@@ -191,7 +191,6 @@ class PdfGenerator {
         margin: const pw.EdgeInsets.all(40),
         theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
         header: (pw.Context context) {
-          // AJUSTE: No mostrar el header en la primera página para evitar duplicar el logo
           if (context.pageNumber == 1) {
             return pw.Container();
           }
@@ -205,7 +204,6 @@ class PdfGenerator {
           );
         },
         footer: (pw.Context context) {
-          // Pie de página restaurado
           return pw.Container(
             alignment: pw.Alignment.center,
             margin: const pw.EdgeInsets.only(top: 16),
@@ -241,7 +239,6 @@ class PdfGenerator {
           }
 
           final pageOneWidgets = <pw.Widget>[
-            // AJUSTE: Logo centrado para la primera página
             pw.Center(
                 child: pw.Image(pw.MemoryImage(logoData),
                     width: 100, height: 100)),
@@ -333,43 +330,46 @@ class PdfGenerator {
                     fontWeight: pw.FontWeight.bold,
                     color: redColor)));
             pageTwoWidgets.add(pw.SizedBox(height: 8));
-            pageTwoWidgets.add(
-              pw.Center(
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.center,
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: scheduleColumns.map((columnData) {
-                    return pw.Padding(
-                      padding: const pw.EdgeInsets.symmetric(horizontal: 5),
-                      child: pw.Table.fromTextArray(
-                        headers: ['Cuota', 'Mes', 'Monto'],
-                        data: columnData,
-                        headerStyle: pw.TextStyle(
-                            fontSize: 10,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.white),
-                        cellStyle:
-                            pw.TextStyle(fontSize: 9, color: PdfColors.black),
-                        cellAlignment: pw.Alignment.center,
-                        cellPadding: const pw.EdgeInsets.all(4),
-                        headerDecoration:
-                            const pw.BoxDecoration(color: redColor),
-                        cellDecoration: (index, data, rowNum) =>
-                            const pw.BoxDecoration(
-                                border: pw.Border(
-                                    bottom: pw.BorderSide(
-                                        color: PdfColors.grey300))),
-                        columnWidths: {
-                          0: pw.FixedColumnWidth(40),
-                          1: pw.FixedColumnWidth(60),
-                          2: pw.FixedColumnWidth(70)
-                        },
-                      ),
-                    );
-                  }).toList(),
+
+            final scheduleTables = scheduleColumns.map((columnData) {
+              return pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 5),
+                child: pw.Table.fromTextArray(
+                  headers: ['Cuota', 'Mes', 'Monto'],
+                  data: columnData,
+                  headerStyle: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white),
+                  cellStyle: pw.TextStyle(fontSize: 9, color: PdfColors.black),
+                  cellAlignment: pw.Alignment.center,
+                  cellPadding: const pw.EdgeInsets.all(4),
+                  headerDecoration: const pw.BoxDecoration(color: redColor),
+                  cellDecoration: (index, data, rowNum) =>
+                      const pw.BoxDecoration(
+                          border: pw.Border(
+                              bottom: pw.BorderSide(color: PdfColors.grey300))),
+                  columnWidths: {
+                    0: pw.FixedColumnWidth(40),
+                    1: pw.FixedColumnWidth(60),
+                    2: pw.FixedColumnWidth(70)
+                  },
                 ),
-              ),
-            );
+              );
+            }).toList();
+
+            final List<pw.Widget> tableRows = [];
+            for (var i = 0; i < scheduleTables.length; i += 3) {
+              tableRows.add(pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: scheduleTables.sublist(
+                    i, min(i + 3, scheduleTables.length)),
+              ));
+              tableRows.add(pw.SizedBox(height: 10));
+            }
+
+            pageTwoWidgets.add(pw.Column(children: tableRows));
           }
 
           final pageThreeWidgets = <pw.Widget>[];
