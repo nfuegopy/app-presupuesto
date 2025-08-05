@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // <--- IMPORTANTE: Añadir esta línea
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -93,6 +94,10 @@ class PdfGenerator {
 
     const PdfColor redColor = PdfColor.fromInt(0xffE30613);
 
+    // Formateador de números para separador de miles y decimales
+    final currencyFormat =
+        NumberFormat.currency(locale: 'es_PY', symbol: '', decimalDigits: 2);
+
     List<List<String>> financingPlans = [];
     List<Map<String, dynamic>> schedule = amortizationSchedule ?? [];
     double generatedMonthlyPayment = 0.0;
@@ -171,15 +176,15 @@ class PdfGenerator {
         [
           planName,
           delivery != null && delivery > 0
-              ? '$currency ${delivery.toStringAsFixed(2)}.-'
+              ? '$currency ${currencyFormat.format(delivery)}.-'
               : '-',
-          '$currency ${generatedMonthlyPayment.toStringAsFixed(2)}',
+          '$currency ${currencyFormat.format(generatedMonthlyPayment)}',
           '$numberOfInstallments',
           hasReinforcements == true && numberOfReinforcements != null
               ? '$numberOfReinforcements'
               : '-',
           hasReinforcements == true && reinforcementAmount != null
-              ? '$currency ${reinforcementAmount.toStringAsFixed(2)}.-'
+              ? '$currency ${currencyFormat.format(reinforcementAmount)}.-'
               : '-',
         ],
       ];
@@ -232,7 +237,7 @@ class PdfGenerator {
               columnData.add([
                 installment['cuota'].toString(),
                 installment['month'] as String,
-                '$currency ${installment['pago_total'].toStringAsFixed(2)}.-',
+                '$currency ${currencyFormat.format(installment['pago_total'])}.-',
               ]);
             }
             scheduleColumns.add(columnData);
@@ -249,7 +254,7 @@ class PdfGenerator {
               child: pw.Text(formattedDate,
                   style: pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
             ),
-            pw.Text('Señor/es:',
+            pw.Text('Señor/es',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800)),
             pw.Text(client.razonSocial,
                 style: pw.TextStyle(
@@ -276,7 +281,8 @@ class PdfGenerator {
                       width: 400, height: 300, fit: pw.BoxFit.contain)),
               pw.SizedBox(height: 12),
             ],
-            pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-',
+            pw.Text(
+                'Precio Unitario: $currency ${currencyFormat.format(price)}.-',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
             pw.SizedBox(height: 16),
             if (financingPlans.isNotEmpty) ...[
@@ -368,7 +374,6 @@ class PdfGenerator {
               ));
               tableRows.add(pw.SizedBox(height: 10));
             }
-
             pageTwoWidgets.add(pw.Column(children: tableRows));
           }
 
