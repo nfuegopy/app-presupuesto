@@ -31,6 +31,7 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
+    String? commercialConditions,
     double? lifeInsuranceAmount,
   }) async {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
@@ -254,7 +255,7 @@ class PdfGenerator {
               child: pw.Text(formattedDate,
                   style: pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
             ),
-            pw.Text('Señor/es',
+            pw.Text('Señor/es:',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800)),
             pw.Text(client.razonSocial,
                 style: pw.TextStyle(
@@ -415,6 +416,37 @@ class PdfGenerator {
                     width: 400, height: 200, fit: pw.BoxFit.contain)));
             pageThreeWidgets.add(pw.SizedBox(height: 16));
           }
+          if (commercialConditions != null && commercialConditions.isNotEmpty) {
+            pageThreeWidgets.add(
+              pw.Center(
+                child: pw.Container(
+                  width: 400,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Condiciones Comerciales',
+                          style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: redColor)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(commercialConditions,
+                          style: pw.TextStyle(
+                              fontSize: 12, color: PdfColors.grey800)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+            pageThreeWidgets.add(pw.SizedBox(height: 12));
+          }
           if (validityOffer != null && validityOffer.isNotEmpty) {
             pageThreeWidgets.add(
               pw.Center(
@@ -480,6 +512,7 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
+    String? commercialConditions,
     double? lifeInsuranceAmount,
   }) async {
     final pdfBytes = await generateBudgetPdf(
@@ -501,6 +534,7 @@ class PdfGenerator {
       amortizationSchedule: amortizationSchedule,
       validityOffer: validityOffer,
       benefits: benefits,
+      commercialConditions: commercialConditions,
       lifeInsuranceAmount: lifeInsuranceAmount,
     );
     await Printing.sharePdf(

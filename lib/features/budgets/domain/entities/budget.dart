@@ -44,5 +44,6 @@ class Budget {
 
     required this.createdBy,
     required this.createdAt,
+    String? commercialConditions,
   });
 }

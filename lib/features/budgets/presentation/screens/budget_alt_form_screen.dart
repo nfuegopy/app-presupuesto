@@ -39,6 +39,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   final _reinforcementAmountController = TextEditingController();
   final _validityOfferController =
       TextEditingController(text: 'Valido 15 dias');
+  final _commercialConditionsController =
+      TextEditingController(text: 'Plazo de Entrega 10 dias');
   final _benefitsController = TextEditingController();
   String _searchQuery = '';
   bool _isNewClient = false;
@@ -136,6 +138,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
     _validityOfferController.dispose();
+    _commercialConditionsController.dispose();
     _benefitsController.dispose();
     super.dispose();
   }
@@ -586,6 +589,12 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
             ],
             const SizedBox(height: 16),
             CustomTextField(
+              controller: _commercialConditionsController,
+              label: 'Condiciones Comerciales',
+              isRequired: false,
+            ),
+            const SizedBox(height: 16),
+            CustomTextField(
               controller: _validityOfferController,
               label: 'Validez de la Oferta',
               isRequired: false,
@@ -779,6 +788,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                             : null,
                     reinforcementMonth: _reinforcementMonth,
                     validityOffer: _validityOfferController.text.trim(),
+                    commercialConditions:
+                        _commercialConditionsController.text.trim(),
                     benefits: _benefitsController.text.trim(),
                   );
 
