@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // <--- IMPORTANTE: Añadir esta línea
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -30,19 +31,18 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
-    double? lifeInsuranceAmount, // Nuevo: Monto del seguro de vida
+    String? commercialConditions,
+    double? lifeInsuranceAmount,
   }) async {
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
         .then((byteData) => byteData.buffer.asUint8List());
 
-    // START MODIFICATION: Load Poppins fonts
     final fontData = await rootBundle.load("assets/fonts/Poppins-Regular.ttf");
     final ttf = pw.Font.ttf(fontData);
 
     final fontBoldData = await rootBundle.load("assets/fonts/Poppins-Bold.ttf");
     final ttfBold = pw.Font.ttf(fontBoldData);
-    // END MODIFICATION
 
     Uint8List? productImageData;
     if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
@@ -93,13 +93,15 @@ class PdfGenerator {
     final formattedDate =
         'Asunción, ${now.day} de ${months[now.month - 1]} del ${now.year}';
 
-    // AJUSTE: Definición del color rojo
     const PdfColor redColor = PdfColor.fromInt(0xffE30613);
+
+    // Formateador de números para separador de miles y decimales
+    final currencyFormat =
+        NumberFormat.currency(locale: 'es_PY', symbol: '', decimalDigits: 2);
 
     List<List<String>> financingPlans = [];
     List<Map<String, dynamic>> schedule = amortizationSchedule ?? [];
     double generatedMonthlyPayment = 0.0;
-    double generatedTotalToPay = 0.0;
 
     if (paymentMethod == 'Financiado' &&
         currency != null &&
@@ -133,7 +135,6 @@ class PdfGenerator {
         }
       }
 
-      // Usar el cronograma proporcionado si está disponible
       if (schedule.isEmpty) {
         schedule = AmortizationCalculator.calculateFrenchAmortization(
           capital: capital,
@@ -147,9 +148,6 @@ class PdfGenerator {
 
       generatedMonthlyPayment =
           schedule.isNotEmpty ? (schedule[0]['pago_total'] as double) : 0.0;
-      generatedTotalToPay = schedule.fold(
-              0.0, (sum, item) => sum + (item['pago_total'] as double)) +
-          (delivery ?? 0);
 
       String planName = '';
       switch (paymentFrequency) {
@@ -179,15 +177,15 @@ class PdfGenerator {
         [
           planName,
           delivery != null && delivery > 0
-              ? '$currency ${delivery.toStringAsFixed(2)}.-'
+              ? '$currency ${currencyFormat.format(delivery)}.-'
               : '-',
-          '$currency ${generatedMonthlyPayment.toStringAsFixed(2)}',
+          '$currency ${currencyFormat.format(generatedMonthlyPayment)}',
           '$numberOfInstallments',
           hasReinforcements == true && numberOfReinforcements != null
               ? '$numberOfReinforcements'
               : '-',
           hasReinforcements == true && reinforcementAmount != null
-              ? '$currency ${reinforcementAmount.toStringAsFixed(2)}.-'
+              ? '$currency ${currencyFormat.format(reinforcementAmount)}.-'
               : '-',
         ],
       ];
@@ -197,22 +195,17 @@ class PdfGenerator {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        theme: pw.ThemeData.withFont(
-          base: ttf,
-          bold: ttfBold,
-        ),
+        theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
         header: (pw.Context context) {
+          if (context.pageNumber == 1) {
+            return pw.Container();
+          }
           return pw.Column(
             children: [
-              pw.Image(pw.MemoryImage(logoData), width: 100, height: 100),
+              pw.Center(
+                  child: pw.Image(pw.MemoryImage(logoData),
+                      width: 100, height: 100)),
               pw.SizedBox(height: 12),
-              pw.Container(
-                alignment: pw.Alignment.centerRight,
-                margin: const pw.EdgeInsets.only(bottom: 16),
-                child: pw.Text(formattedDate,
-                    style:
-                        pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
-              ),
             ],
           );
         },
@@ -222,10 +215,10 @@ class PdfGenerator {
             margin: const pw.EdgeInsets.only(top: 16),
             child: pw.Column(
               children: [
-                pw.Text('www.enginepy.com',
+                pw.Text('Tajy, B° Arecaya - Mariano Roque Alonso',
                     style:
                         pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                pw.Text('Cel. (0985) 242811',
+                pw.Text('www.enginepy.com',
                     style:
                         pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
               ],
@@ -233,18 +226,6 @@ class PdfGenerator {
           );
         },
         build: (pw.Context context) {
-          double totalToPay = price;
-          double? monthlyPayment;
-
-          if (paymentMethod == 'Financiado' && schedule.isNotEmpty) {
-            totalToPay = schedule.fold(
-                    0.0, (sum, item) => sum + (item['pago_total'] as double)) +
-                (delivery ?? 0);
-            monthlyPayment = schedule[0]['pago_total'] as double;
-          } else if (paymentMethod == 'Financiado' && delivery != null) {
-            totalToPay += (delivery ?? 0);
-          }
-
           List<List<List<String>>> scheduleColumns = [];
           const int maxRowsPerColumn = 24;
           int numberOfColumns = (schedule.length / maxRowsPerColumn).ceil();
@@ -257,14 +238,24 @@ class PdfGenerator {
               columnData.add([
                 installment['cuota'].toString(),
                 installment['month'] as String,
-                '$currency ${installment['pago_total'].toStringAsFixed(2)}.-',
+                '$currency ${currencyFormat.format(installment['pago_total'])}.-',
               ]);
             }
             scheduleColumns.add(columnData);
           }
 
-          return [
-            pw.Text('Señor',
+          final pageOneWidgets = <pw.Widget>[
+            pw.Center(
+                child: pw.Image(pw.MemoryImage(logoData),
+                    width: 100, height: 100)),
+            pw.SizedBox(height: 12),
+            pw.Container(
+              alignment: pw.Alignment.centerRight,
+              margin: const pw.EdgeInsets.only(bottom: 16),
+              child: pw.Text(formattedDate,
+                  style: pw.TextStyle(fontSize: 12, color: PdfColors.grey800)),
+            ),
+            pw.Text('Señor/es:',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800)),
             pw.Text(client.razonSocial,
                 style: pw.TextStyle(
@@ -272,35 +263,30 @@ class PdfGenerator {
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.black)),
             pw.SizedBox(height: 16),
-            // AJUSTE: Texto "(1) Una" modificado
             pw.Text(
               'Por el presente nos dirigimos a usted a modo de presentar la cotización por el siguiente producto: (1) ${product.name}',
               style: pw.TextStyle(fontSize: 14, color: PdfColors.grey800),
             ),
             pw.SizedBox(height: 16),
-            // AJUSTE: Color rojo aplicado
             pw.Text('MAQUINARIA',
                 style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                     color: redColor)),
             pw.SizedBox(height: 8),
-            pw.Text('Retropala ${product.name}',
-                style: pw.TextStyle(fontSize: 14)),
+            pw.Text(product.name, style: pw.TextStyle(fontSize: 14)),
             pw.SizedBox(height: 8),
             if (descriptionImageData != null) ...[
-              // AJUSTE: Imagen centrada
               pw.Center(
-                child: pw.Image(pw.MemoryImage(descriptionImageData),
-                    width: 400, height: 300, fit: pw.BoxFit.contain),
-              ),
+                  child: pw.Image(pw.MemoryImage(descriptionImageData),
+                      width: 400, height: 300, fit: pw.BoxFit.contain)),
               pw.SizedBox(height: 12),
             ],
-            pw.Text('Precio Unitario: $currency ${price.toStringAsFixed(2)}.-',
+            pw.Text(
+                'Precio Unitario: $currency ${currencyFormat.format(price)}.-',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
             pw.SizedBox(height: 16),
             if (financingPlans.isNotEmpty) ...[
-              // AJUSTE: Color rojo aplicado
               pw.Text('FINANCIACIÓN',
                   style: pw.TextStyle(
                       fontSize: 16,
@@ -317,7 +303,7 @@ class PdfGenerator {
                   'Monto de cuota',
                   'Cantidad de cuotas',
                   'Cantidad de refuerzos',
-                  'Monto de refuerzos',
+                  'Monto de refuerzos'
                 ],
                 data: financingPlans,
                 headerStyle: pw.TextStyle(
@@ -327,7 +313,6 @@ class PdfGenerator {
                 cellStyle: pw.TextStyle(fontSize: 9, color: PdfColors.black),
                 cellAlignment: pw.Alignment.center,
                 cellPadding: const pw.EdgeInsets.all(4),
-                // AJUSTE: Color rojo aplicado
                 headerDecoration: const pw.BoxDecoration(color: redColor),
                 cellDecoration: (index, data, rowNum) => const pw.BoxDecoration(
                     border: pw.Border(
@@ -338,126 +323,168 @@ class PdfGenerator {
                   2: pw.FixedColumnWidth(70),
                   3: pw.FixedColumnWidth(60),
                   4: pw.FixedColumnWidth(60),
-                  5: pw.FixedColumnWidth(70),
+                  5: pw.FixedColumnWidth(70)
                 },
               ),
-              pw.SizedBox(height: 16),
             ],
-            if (paymentMethod == 'Financiado' && schedule.isNotEmpty) ...[
-              // AJUSTE: Color rojo aplicado
-              pw.Text('CRONOGRAMA DE CUOTAS',
-                  style: pw.TextStyle(
-                      fontSize: 16,
+          ];
+
+          final pageTwoWidgets = <pw.Widget>[];
+          if (paymentMethod == 'Financiado' && schedule.isNotEmpty) {
+            pageTwoWidgets.add(pw.Text('CRONOGRAMA DE CUOTAS',
+                style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: redColor)));
+            pageTwoWidgets.add(pw.SizedBox(height: 8));
+
+            final scheduleTables = scheduleColumns.map((columnData) {
+              return pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 5),
+                child: pw.Table.fromTextArray(
+                  headers: ['Cuota', 'Mes', 'Monto'],
+                  data: columnData,
+                  headerStyle: pw.TextStyle(
+                      fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
-                      color: redColor)),
-              pw.SizedBox(height: 8),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.start,
+                      color: PdfColors.white),
+                  cellStyle: pw.TextStyle(fontSize: 9, color: PdfColors.black),
+                  cellAlignment: pw.Alignment.center,
+                  cellPadding: const pw.EdgeInsets.all(4),
+                  headerDecoration: const pw.BoxDecoration(color: redColor),
+                  cellDecoration: (index, data, rowNum) =>
+                      const pw.BoxDecoration(
+                          border: pw.Border(
+                              bottom: pw.BorderSide(color: PdfColors.grey300))),
+                  columnWidths: {
+                    0: pw.FixedColumnWidth(40),
+                    1: pw.FixedColumnWidth(60),
+                    2: pw.FixedColumnWidth(70)
+                  },
+                ),
+              );
+            }).toList();
+
+            final List<pw.Widget> tableRows = [];
+            for (var i = 0; i < scheduleTables.length; i += 3) {
+              tableRows.add(pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: scheduleColumns.map((columnData) {
-                  return pw.Padding(
-                    padding: const pw.EdgeInsets.only(right: 10),
-                    child: pw.Table.fromTextArray(
-                      headers: ['Cuota', 'Mes', 'Monto'],
-                      data: columnData,
-                      headerStyle: pw.TextStyle(
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.white),
-                      cellStyle:
-                          pw.TextStyle(fontSize: 9, color: PdfColors.black),
-                      cellAlignment: pw.Alignment.center,
-                      cellPadding: const pw.EdgeInsets.all(4),
-                      // AJUSTE: Color rojo aplicado
-                      headerDecoration: const pw.BoxDecoration(color: redColor),
-                      cellDecoration: (index, data, rowNum) =>
-                          const pw.BoxDecoration(
-                              border: pw.Border(
-                                  bottom:
-                                      pw.BorderSide(color: PdfColors.grey300))),
-                      columnWidths: {
-                        0: pw.FixedColumnWidth(40),
-                        1: pw.FixedColumnWidth(60),
-                        2: pw.FixedColumnWidth(70),
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-              pw.SizedBox(height: 16),
-            ],
-            // Seguro de vida comentado, como en el original
-            // if (lifeInsuranceAmount != null && lifeInsuranceAmount > 0) ...[ ... ],
-            if (paymentMethod != 'Financiado') ...[
-              pw.Text(
-                  'Total a Abonar: $currency ${totalToPay.toStringAsFixed(2)}.-',
-                  style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.black)),
-              pw.SizedBox(height: 16),
-            ],
-            if (productImageData != null) ...[
-              // AJUSTE: Imagen centrada
+                children: scheduleTables.sublist(
+                    i, min(i + 3, scheduleTables.length)),
+              ));
+              tableRows.add(pw.SizedBox(height: 10));
+            }
+            pageTwoWidgets.add(pw.Column(children: tableRows));
+          }
+
+          final pageThreeWidgets = <pw.Widget>[];
+          if (benefits != null && benefits.isNotEmpty) {
+            pageThreeWidgets.add(
               pw.Center(
+                child: pw.Container(
+                  width: 400,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Beneficios',
+                          style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: redColor)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(benefits,
+                          style: pw.TextStyle(
+                              fontSize: 12, color: PdfColors.grey800)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+            pageThreeWidgets.add(pw.SizedBox(height: 12));
+          }
+          if (productImageData != null) {
+            pageThreeWidgets.add(pw.Center(
                 child: pw.Image(pw.MemoryImage(productImageData),
-                    width: 400, height: 200, fit: pw.BoxFit.contain),
-              ),
-              pw.SizedBox(height: 16),
-            ],
-            if (validityOffer != null && validityOffer.isNotEmpty) ...[
-              pw.Container(
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius:
-                      const pw.BorderRadius.all(pw.Radius.circular(8)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    // AJUSTE: Color rojo aplicado
-                    pw.Text('Validez de la Oferta',
-                        style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: redColor)),
-                    pw.SizedBox(height: 4),
-                    pw.Text(validityOffer,
-                        style: pw.TextStyle(
-                            fontSize: 12, color: PdfColors.grey800)),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 12),
-            ],
-            if (benefits != null && benefits.isNotEmpty) ...[
-              pw.Container(
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius:
-                      const pw.BorderRadius.all(pw.Radius.circular(8)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    // AJUSTE: Color rojo aplicado
-                    pw.Text('Beneficios',
-                        style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: redColor)),
-                    pw.SizedBox(height: 4),
-                    pw.Text(benefits,
-                        style: pw.TextStyle(
-                            fontSize: 12, color: PdfColors.grey800)),
-                  ],
+                    width: 400, height: 200, fit: pw.BoxFit.contain)));
+            pageThreeWidgets.add(pw.SizedBox(height: 16));
+          }
+          if (commercialConditions != null && commercialConditions.isNotEmpty) {
+            pageThreeWidgets.add(
+              pw.Center(
+                child: pw.Container(
+                  width: 400,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Condiciones Comerciales',
+                          style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: redColor)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(commercialConditions,
+                          style: pw.TextStyle(
+                              fontSize: 12, color: PdfColors.grey800)),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            );
+            pageThreeWidgets.add(pw.SizedBox(height: 12));
+          }
+          if (validityOffer != null && validityOffer.isNotEmpty) {
+            pageThreeWidgets.add(
+              pw.Center(
+                child: pw.Container(
+                  width: 400,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Validez de la Oferta',
+                          style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: redColor)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(validityOffer,
+                          style: pw.TextStyle(
+                              fontSize: 12, color: PdfColors.grey800)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+            pageThreeWidgets.add(pw.SizedBox(height: 12));
+          }
+
+          return [
+            ...pageOneWidgets,
+            if (pageTwoWidgets.isNotEmpty) pw.NewPage(),
+            ...pageTwoWidgets,
+            if (pageThreeWidgets.isNotEmpty) pw.NewPage(),
+            ...pageThreeWidgets,
           ];
         },
       ),
@@ -485,9 +512,9 @@ class PdfGenerator {
     List<Map<String, dynamic>>? amortizationSchedule,
     String? validityOffer,
     String? benefits,
+    String? commercialConditions,
     double? lifeInsuranceAmount,
   }) async {
-    // La llamada a generateBudgetPdf se mantiene tal cual, sin agregar annualNominalRate
     final pdfBytes = await generateBudgetPdf(
       context: context,
       client: client,
@@ -507,6 +534,7 @@ class PdfGenerator {
       amortizationSchedule: amortizationSchedule,
       validityOffer: validityOffer,
       benefits: benefits,
+      commercialConditions: commercialConditions,
       lifeInsuranceAmount: lifeInsuranceAmount,
     );
     await Printing.sharePdf(

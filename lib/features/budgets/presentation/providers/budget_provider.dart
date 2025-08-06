@@ -32,6 +32,7 @@ class BudgetProvider with ChangeNotifier {
   double? _reinforcementAmount;
   String? _reinforcementMonth;
   String? _validityOffer;
+  String? _commercialConditions;
   String? _benefits;
   double? _lifeInsuranceAmount; // Nuevo: Monto del seguro de vida
   List<Map<String, dynamic>>? _amortizationSchedule;
@@ -54,6 +55,7 @@ class BudgetProvider with ChangeNotifier {
   double? get reinforcementAmount => _reinforcementAmount;
   String? get reinforcementMonth => _reinforcementMonth;
   String? get validityOffer => _validityOffer;
+  String? get commercialConditions => _commercialConditions;
   String? get benefits => _benefits;
   double? get lifeInsuranceAmount => _lifeInsuranceAmount; // Nuevo getter
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
@@ -150,6 +152,7 @@ class BudgetProvider with ChangeNotifier {
     double? reinforcementAmount,
     String? reinforcementMonth,
     String? validityOffer,
+    String? commercialConditions,
     String? benefits,
   }) async {
     debugPrint('[BudgetProvider] updatePaymentDetails: '
@@ -216,6 +219,7 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementAmount = reinforcementAmount;
     _reinforcementMonth = reinforcementMonth;
     _validityOffer = validityOffer;
+    _commercialConditions = commercialConditions;
     _benefits = benefits;
     _error = null;
 
@@ -392,6 +396,7 @@ class BudgetProvider with ChangeNotifier {
         numberOfReinforcements: _numberOfReinforcements,
         reinforcementAmount: _reinforcementAmount,
         validityOffer: _validityOffer,
+        commercialConditions: _commercialConditions,
         benefits: _benefits,
         lifeInsuranceAmount:
             _lifeInsuranceAmount, // Guardar monto del seguro de vida
@@ -469,6 +474,7 @@ class BudgetProvider with ChangeNotifier {
         reinforcementMonth: _reinforcementMonth,
         amortizationSchedule: _amortizationSchedule,
         validityOffer: _validityOffer,
+        commercialConditions: _commercialConditions,
         benefits: _benefits,
         lifeInsuranceAmount:
             _lifeInsuranceAmount, // Pasar monto del seguro de vida
@@ -561,6 +567,7 @@ class BudgetProvider with ChangeNotifier {
     _reinforcementAmount = null;
     _reinforcementMonth = null;
     _validityOffer = null;
+    _commercialConditions = null;
     _benefits = null;
     _lifeInsuranceAmount = null; // Limpiar monto del seguro de vida
     _amortizationSchedule = null;

@@ -1,6 +1,6 @@
-name: app_presupuesto
-description: Aplicación para generar presupuestos de máquinas.
-version: 1.0.0
+name: Engine_S.A
+description: App de Presupuestos.
+version: 2.5.3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -24,6 +24,7 @@ dependencies:
   animate_do: ^3.3.4
   cached_network_image: ^3.3.1
   uuid: ^4.5.1
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:
