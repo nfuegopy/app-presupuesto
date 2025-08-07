@@ -80,6 +80,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   ];
 
   final List<String> benefitOptions = [
+    'Garantia: 12 meses o 2.000 horas',
     'Transferencia',
     'Flete',
     'Primer Mantenimiento',
