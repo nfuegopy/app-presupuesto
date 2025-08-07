@@ -21,6 +21,8 @@ class CustomTagsInputField extends StatefulWidget {
 class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
   List<String> selectedTags = [];
   late TextEditingController _internalController;
+  // Controlador para el nuevo campo de texto de beneficios personalizados
+  final _customBenefitController = TextEditingController();
   FocusNode _focusNode = FocusNode();
 
   @override
@@ -55,6 +57,8 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
   void dispose() {
     widget.controller.removeListener(_updateSelectedTags);
     _internalController.dispose();
+    _customBenefitController
+        .dispose(); // No olvides liberar el controlador nuevo
     _focusNode.dispose();
     super.dispose();
   }
@@ -80,6 +84,7 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
           ],
         ),
         const SizedBox(height: 8),
+        // Widget de autocompletado para las opciones predefinidas
         Autocomplete<String>(
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text.isEmpty) {
@@ -98,7 +103,7 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
                 selectedTags.add(selection);
                 widget.controller.text = selectedTags.join(', ');
                 _internalController.clear();
-                _focusNode.unfocus(); // Perder el foco tras seleccionar
+                _focusNode.unfocus();
               }
             });
           },
@@ -111,74 +116,58 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 hintText: selectedTags.isEmpty
-                    ? 'Seleccione beneficios'
-                    : selectedTags.join(', '),
+                    ? 'Seleccione o busque beneficios'
+                    : 'Añadir más beneficios...',
                 errorText: widget.isRequired && selectedTags.isEmpty
                     ? 'Este campo es obligatorio'
                     : null,
               ),
-              onChanged: (value) {
-                if (value.endsWith(',') || value.endsWith(', ')) {
-                  final newTag = value
-                      .substring(
-                          0, value.length - (value.endsWith(', ') ? 2 : 1))
-                      .trim();
-                  if (newTag.isNotEmpty &&
-                      widget.options.contains(newTag) &&
-                      !selectedTags.contains(newTag)) {
-                    setState(() {
-                      selectedTags.add(newTag);
-                      widget.controller.text = selectedTags.join(', ');
-                      controller.clear();
-                      _focusNode.unfocus(); // Perder el foco tras añadir
-                    });
-                  }
-                }
-              },
-              onSubmitted: (value) {
-                final newTag = value.trim();
-                if (newTag.isNotEmpty &&
-                    widget.options.contains(newTag) &&
-                    !selectedTags.contains(newTag)) {
-                  setState(() {
-                    selectedTags.add(newTag);
-                    widget.controller.text = selectedTags.join(', ');
-                    controller.clear();
-                    _focusNode.unfocus(); // Perder el foco tras submit
-                  });
-                }
-              },
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 200),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final option = options.elementAt(index);
-                      return ListTile(
-                        title: Text(option),
-                        onTap: () {
-                          onSelected(option);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
             );
           },
         ),
+        const SizedBox(height: 16),
+        // NUEVA SECCIÓN: Campo de texto para beneficios personalizados
+        Text(
+          'Otro Beneficio (Opcional)',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _customBenefitController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Escriba un beneficio y presione +',
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.add_circle, color: Colors.green),
+              onPressed: () {
+                final newTag = _customBenefitController.text.trim();
+                if (newTag.isNotEmpty && !selectedTags.contains(newTag)) {
+                  setState(() {
+                    selectedTags.add(newTag);
+                    widget.controller.text = selectedTags.join(', ');
+                    _customBenefitController.clear();
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+        // FIN DE LA NUEVA SECCIÓN
         if (selectedTags.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+          // El `Wrap` con los `Chip` mostrará todos los beneficios
           Wrap(
             spacing: 8,
+            runSpacing: 4,
             children: selectedTags.map((tag) {
               return Chip(
                 label: Text(tag),
