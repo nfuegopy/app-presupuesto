@@ -1,3 +1,5 @@
+// Archivo: lib/features/budgets/presentation/utils/amortization_calculator.dart
+
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 
@@ -8,19 +10,18 @@ class AmortizationCalculator {
     Map<int, double>? reinforcements,
     String? reinforcementMonth,
     String paymentFrequency = 'Mensual',
-    required double annualNominalRate, // Ahora es requerido y no puede ser nulo
+    required double annualNominalRate,
   }) {
-    // PASO 1: LÓGICA DE CONFIGURACIÓN ORIGINAL
+    // Helper para redondear a 2 decimales
+    double roundDouble(double value, int places) {
+      num mod = pow(10.0, places);
+      return ((value * mod).round().toDouble() / mod);
+    }
+
     const double gastosAdministrativos = 50.0;
     final double capitalConDeducciones = capital + gastosAdministrativos;
 
-    // =======================================================================
-    // LÍNEA MODIFICADA: Se eliminó el valor de respaldo `?? 0.095`
-    // Ahora, la tasa anual DEBE ser proporcionada.
-    // =======================================================================
     double effectiveAnnualRate = annualNominalRate;
-    // =======================================================================
-
     double monthlyRate = effectiveAnnualRate / 12;
     double periodicRate;
     switch (paymentFrequency) {
@@ -51,7 +52,6 @@ class AmortizationCalculator {
       'Diciembre'
     ];
 
-    // PASO 2: LÓGICA DE CÁLCULO DE REFUERZOS (SIN CAMBIOS)
     Map<int, double> adjustedReinforcements = reinforcements ?? {};
     if (reinforcementMonth != null &&
         reinforcements != null &&
@@ -91,7 +91,6 @@ class AmortizationCalculator {
       }
     }
 
-    // PASO 3: LÓGICA DE CORRECCIÓN DE CUOTA (SIN CAMBIOS)
     double fixedMonthlyPayment;
     final bool hasReinforcements = adjustedReinforcements.isNotEmpty;
     if (hasReinforcements) {
@@ -113,7 +112,9 @@ class AmortizationCalculator {
           (pow(1 + periodicRate, numberOfInstallments) - 1);
     }
 
-    // PASO 4: GENERACIÓN DE LA TABLA (SIN CAMBIOS)
+    // Redondeamos la cuota fija para mayor precision
+    fixedMonthlyPayment = roundDouble(fixedMonthlyPayment, 2);
+
     List<Map<String, dynamic>> schedule = [];
     double remainingCapital = capitalConDeducciones;
     int initialMonthIndexValue;
@@ -147,24 +148,25 @@ class AmortizationCalculator {
         }
       }
 
-      if (remainingCapital < 0.01) remainingCapital = 0;
-
-      double interest = remainingCapital * periodicRate;
+      double interest = roundDouble(remainingCapital * periodicRate, 2);
       double reinforcement = adjustedReinforcements[i] ?? 0;
       double totalPaymentThisMonth = fixedMonthlyPayment + reinforcement;
       double principal;
 
-      if (i == numberOfInstallments && remainingCapital > 0) {
+      // Para la última cuota, el capital a pagar es el remanente.
+      if (i == numberOfInstallments) {
         principal = remainingCapital;
-        totalPaymentThisMonth = principal + interest;
+        totalPaymentThisMonth = principal + interest + reinforcement;
       } else {
-        principal = totalPaymentThisMonth - interest;
+        principal = totalPaymentThisMonth - interest - reinforcement;
       }
 
-      if (principal > remainingCapital) {
-        principal = remainingCapital;
-      }
       remainingCapital -= principal;
+
+      // Aseguramos que el capital remanente sea 0 al final.
+      if (i == numberOfInstallments) {
+        remainingCapital = 0;
+      }
 
       String monthName = months[monthIndex % 12];
       int daysToDueDate;
@@ -190,7 +192,7 @@ class AmortizationCalculator {
         'capital': principal,
         'intereses': interest,
         'pago_total': totalPaymentThisMonth,
-        'capital_pendiente': remainingCapital > 0 ? remainingCapital : 0,
+        'capital_pendiente': remainingCapital,
         'valor_descontado': discountedValue,
       });
     }
