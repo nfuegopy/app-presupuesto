@@ -42,6 +42,8 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   final _commercialConditionsController =
       TextEditingController(text: 'Plazo de Entrega 10 dias');
   final _benefitsController = TextEditingController();
+  final _reinforcementYearController =
+      TextEditingController(text: (DateTime.now().year + 1).toString());
   String _searchQuery = '';
   bool _isNewClient = false;
   ClientModel? _selectedClient;
@@ -140,6 +142,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
     _validityOfferController.dispose();
     _commercialConditionsController.dispose();
     _benefitsController.dispose();
+    _reinforcementYearController.dispose();
     super.dispose();
   }
 
@@ -570,6 +573,15 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                       },
                     ),
                   ],
+                  if (_reinforcementFrequency == 'Anual') ...[
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _reinforcementYearController,
+                      label: 'Año de Inicio de Refuerzos',
+                      keyboardType: TextInputType.number,
+                      isRequired: true,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   CustomTextField(
                     controller: _numberOfReinforcementsController,
@@ -787,6 +799,10 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                             ? double.parse(_reinforcementAmountController.text)
                             : null,
                     reinforcementMonth: _reinforcementMonth,
+                    reinforcementYear:
+                        _reinforcementYearController.text.isNotEmpty
+                            ? int.tryParse(_reinforcementYearController.text)
+                            : null,
                     validityOffer: _validityOfferController.text.trim(),
                     commercialConditions:
                         _commercialConditionsController.text.trim(),

@@ -1,4 +1,4 @@
-// File: nfuegopy/app-presupuesto/app-presupuesto-da449cfc3e7d0ae6b62ba849dde1f34919f41601/lib/features/budgets/presentation/providers/budget_provider.dart
+// lib/features/budgets/presentation/providers/budget_provider.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -31,10 +31,11 @@ class BudgetProvider with ChangeNotifier {
   int? _numberOfReinforcements;
   double? _reinforcementAmount;
   String? _reinforcementMonth;
+  int? _reinforcementYear;
   String? _validityOffer;
   String? _commercialConditions;
   String? _benefits;
-  double? _lifeInsuranceAmount; // Nuevo: Monto del seguro de vida
+  double? _lifeInsuranceAmount;
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
 
@@ -57,7 +58,7 @@ class BudgetProvider with ChangeNotifier {
   String? get validityOffer => _validityOffer;
   String? get commercialConditions => _commercialConditions;
   String? get benefits => _benefits;
-  double? get lifeInsuranceAmount => _lifeInsuranceAmount; // Nuevo getter
+  double? get lifeInsuranceAmount => _lifeInsuranceAmount;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
 
@@ -99,11 +100,9 @@ class BudgetProvider with ChangeNotifier {
     String? telefono,
     String? ciudad,
     String? departamento,
-    String? clientType, // Nuevo: Parámetro para el tipo de cliente
+    String? clientType,
     String? selectedClientId,
   }) {
-    debugPrint(
-        '[BudgetProvider] updateClient: razonSocial=$razonSocial, ruc=$ruc, clientType=$clientType, selectedClientId=$selectedClientId');
     if (razonSocial.isEmpty || ruc.isEmpty) {
       _error = 'Razón Social y RUC son obligatorios.';
       notifyListeners();
@@ -117,12 +116,11 @@ class BudgetProvider with ChangeNotifier {
     _client = Client(
       razonSocial: razonSocial,
       ruc: ruc,
-      email: email != null && email.isNotEmpty ? email : null,
-      telefono: telefono != null && telefono.isNotEmpty ? telefono : null,
-      ciudad: ciudad != null && ciudad.isNotEmpty ? ciudad : null,
-      departamento:
-          departamento != null && departamento.isNotEmpty ? departamento : null,
-      clientType: clientType, // Asignar el tipo de cliente
+      email: email,
+      telefono: telefono,
+      ciudad: ciudad,
+      departamento: departamento,
+      clientType: clientType,
     );
     _selectedClientId = selectedClientId;
     _error = null;
@@ -130,8 +128,6 @@ class BudgetProvider with ChangeNotifier {
   }
 
   void updateProduct(Product product) {
-    debugPrint(
-        '[BudgetProvider] updateProduct: name=${product.name}, price=${product.price}');
     _product = product;
     _price = product.price;
     _currency = product.currency;
@@ -151,63 +147,13 @@ class BudgetProvider with ChangeNotifier {
     int? numberOfReinforcements,
     double? reinforcementAmount,
     String? reinforcementMonth,
+    int? reinforcementYear,
     String? validityOffer,
     String? commercialConditions,
     String? benefits,
   }) async {
-    debugPrint('[BudgetProvider] updatePaymentDetails: '
-        'currency=$currency, '
-        'price=$price, '
-        'capital=${price - (delivery ?? 0)}, '
-        'delivery=$delivery, '
-        'numberOfInstallments=$numberOfInstallments, '
-        'paymentMethod=$paymentMethod, '
-        'financingType=$financingType, '
-        'paymentFrequency=$paymentFrequency, '
-        'hasReinforcements=$hasReinforcements, '
-        'reinforcementFrequency=$reinforcementFrequency, '
-        'numberOfReinforcements=$numberOfReinforcements, '
-        'reinforcementAmount=$reinforcementAmount, '
-        'reinforcementMonth=$reinforcementMonth');
-
-    if (price <= 0) {
-      _error = 'El precio debe ser mayor a 0.';
-      notifyListeners();
-      return;
-    }
-    if (paymentMethod == 'Financiado') {
-      if (financingType == null ||
-          paymentFrequency == null ||
-          numberOfInstallments == null) {
-        _error = 'Complete todos los campos obligatorios para financiamiento.';
-        notifyListeners();
-        return;
-      }
-      if (financingType == 'Propia' && (delivery == null || delivery <= 0)) {
-        _error = 'La entrega es obligatoria para financiación propia.';
-        notifyListeners();
-        return;
-      }
-      if (hasReinforcements == true &&
-          (reinforcementFrequency == null ||
-              numberOfReinforcements == null ||
-              reinforcementAmount == null)) {
-        _error = 'Complete los campos de refuerzos.';
-        notifyListeners();
-        return;
-      }
-      if (hasReinforcements == true &&
-          reinforcementFrequency == 'Anual' &&
-          reinforcementMonth == null) {
-        _error = 'Seleccione el mes de abono anual.';
-        notifyListeners();
-        return;
-      }
-    }
-
     _currency = currency;
     _price = price;
-    debugPrint('[BudgetProvider] Precio almacenado: $_price');
     _paymentMethod = paymentMethod;
     _financingType = financingType;
     _delivery = delivery;
@@ -218,46 +164,51 @@ class BudgetProvider with ChangeNotifier {
     _numberOfReinforcements = numberOfReinforcements;
     _reinforcementAmount = reinforcementAmount;
     _reinforcementMonth = reinforcementMonth;
+    _reinforcementYear = reinforcementYear;
     _validityOffer = validityOffer;
     _commercialConditions = commercialConditions;
     _benefits = benefits;
     _error = null;
 
-    if (_client != null && _client!.clientType == 'Persona Física') {
-      _lifeInsuranceAmount = price * 0.03;
-      debugPrint(
-          '[BudgetProvider] Seguro de vida calculado: $_lifeInsuranceAmount');
-    } else {
-      _lifeInsuranceAmount = null;
-    }
+    // --- SEGURO DE VIDA DESACTIVADO ---
+    // if (_client != null && _client!.clientType == 'Persona Física') {
+    //   _lifeInsuranceAmount = price * 0.03;
+    // } else {
+    //   _lifeInsuranceAmount = null;
+    // }
+    _lifeInsuranceAmount =
+        null; // Se establece a null para omitirlo del cálculo
+    // --- FIN DE LA MODIFICACIÓN ---
 
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      final double annualRate = await _fetchInterestRate();
-      double effectivePrice = price + (_lifeInsuranceAmount ?? 0.0);
-      double capital = effectivePrice - delivery;
+      const double financingCoefficient = 1.32;
 
-      debugPrint(
-          '[BudgetProvider] Calculando amortización: capital (incluye seguro)=$capital, numberOfInstallments=$numberOfInstallments');
+      // La variable 'effectivePrice' ahora solo usa el precio, ya que el seguro está desactivado.
+      double effectivePrice = price; // + (_lifeInsuranceAmount ?? 0.0);
+      double capitalToFinance = effectivePrice - delivery;
+
+      final reinforcementsMap = hasReinforcements == true &&
+              numberOfReinforcements != null &&
+              reinforcementAmount != null
+          ? _generateReinforcements(numberOfReinforcements, reinforcementAmount,
+              reinforcementFrequency!)
+          : null;
+
+      debugPrint('[BudgetProvider] Calculando amortización TASA PLANA: '
+          'capital a financiar=${capitalToFinance.toStringAsFixed(2)}, '
+          '# de cuotas=$numberOfInstallments, '
+          'coeficiente=$financingCoefficient');
 
       _amortizationSchedule =
-          AmortizationCalculator.calculateFrenchAmortization(
-        capital: capital,
+          AmortizationCalculator.calculateFlatRateAmortization(
+        capital: capitalToFinance,
         numberOfInstallments: numberOfInstallments,
-        reinforcements: hasReinforcements == true &&
-                numberOfReinforcements != null &&
-                reinforcementAmount != null
-            ? _generateReinforcements(numberOfReinforcements,
-                reinforcementAmount, reinforcementFrequency!)
-            : null,
-        reinforcementMonth: reinforcementMonth,
+        coefficient: financingCoefficient,
+        reinforcements: reinforcementsMap,
         paymentFrequency: paymentFrequency ?? 'Mensual',
-        annualNominalRate: annualRate,
       );
-
-      debugPrint(
-          '[BudgetProvider] Amortización generada: ${_amortizationSchedule!.length} cuotas');
     } else {
       _amortizationSchedule = null;
     }
@@ -280,7 +231,7 @@ class BudgetProvider with ChangeNotifier {
         interval = 12;
         break;
       default:
-        interval = 3;
+        interval = 12;
     }
     for (int i = 1; i <= numberOfReinforcements; i++) {
       reinforcements[i * interval] = reinforcementAmount;
@@ -308,29 +259,19 @@ class BudgetProvider with ChangeNotifier {
     }
 
     try {
-      debugPrint(
-          '[BudgetProvider] Creando presupuesto: clientId=$_clientId, product=${_product!.name}');
       if (_selectedClientId != null) {
         _clientId = _selectedClientId;
         final clientDocRef =
             FirebaseFirestore.instance.collection('clients').doc(_clientId);
-        final clientSnapshot = await clientDocRef.get();
-        if (clientSnapshot.exists) {
-          final existingClientData =
-              clientSnapshot.data() as Map<String, dynamic>;
-          final updatedClientModel = ClientModel(
-            id: _clientId!,
-            razonSocial: _client!.razonSocial,
-            ruc: _client!.ruc,
-            email: _client!.email,
-            telefono: _client!.telefono,
-            ciudad: _client!.ciudad,
-            departamento: _client!.departamento,
-            clientType: _client!.clientType, // Guardar tipo de cliente
-            createdBy: existingClientData['createdBy'],
-          );
-          await clientDocRef.update(updatedClientModel.toMap());
-        }
+        await clientDocRef.update({
+          'razonSocial': _client!.razonSocial,
+          'ruc': _client!.ruc,
+          'email': _client!.email,
+          'telefono': _client!.telefono,
+          'ciudad': _client!.ciudad,
+          'departamento': _client!.departamento,
+          'clientType': _client!.clientType,
+        });
       } else {
         final rucQuery = await FirebaseFirestore.instance
             .collection('clients')
@@ -339,26 +280,18 @@ class BudgetProvider with ChangeNotifier {
             .get();
 
         if (rucQuery.docs.isNotEmpty) {
-          final existingClientDoc = rucQuery.docs.first;
-          _clientId = existingClientDoc.id;
-          final existingClientData = existingClientDoc.data();
-
-          final updatedClientModel = ClientModel(
-            id: _clientId!,
-            razonSocial: _client!.razonSocial,
-            ruc: _client!.ruc,
-            email: _client!.email,
-            telefono: _client!.telefono,
-            ciudad: _client!.ciudad,
-            departamento: _client!.departamento,
-            clientType: _client!.clientType, // Guardar tipo de cliente
-            createdBy: existingClientData['createdBy'],
-          );
+          _clientId = rucQuery.docs.first.id;
           await FirebaseFirestore.instance
               .collection('clients')
               .doc(_clientId)
-              .update(updatedClientModel.toMap());
-          _error = null;
+              .update({
+            'razonSocial': _client!.razonSocial,
+            'email': _client!.email,
+            'telefono': _client!.telefono,
+            'ciudad': _client!.ciudad,
+            'departamento': _client!.departamento,
+            'clientType': _client!.clientType,
+          });
         } else {
           final newClientId = const Uuid().v4();
           final clientModel = ClientModel(
@@ -369,7 +302,7 @@ class BudgetProvider with ChangeNotifier {
             telefono: _client!.telefono,
             ciudad: _client!.ciudad,
             departamento: _client!.departamento,
-            clientType: _client!.clientType, // Guardar tipo de cliente
+            clientType: _client!.clientType,
             createdBy: user.uid,
           );
           await FirebaseFirestore.instance
@@ -398,16 +331,13 @@ class BudgetProvider with ChangeNotifier {
         validityOffer: _validityOffer,
         commercialConditions: _commercialConditions,
         benefits: _benefits,
-        lifeInsuranceAmount:
-            _lifeInsuranceAmount, // Guardar monto del seguro de vida
+        lifeInsuranceAmount: _lifeInsuranceAmount,
         createdBy: user.uid,
         createdAt: DateTime.now().toIso8601String(),
       );
 
       await _createBudget(budget);
       _error = null;
-
-      // Recargar la lista de clientes después de crear/actualizar uno
       await loadClientsByVendor();
     } catch (e) {
       _error = 'Error al guardar el presupuesto: $e';
@@ -434,26 +364,18 @@ class BudgetProvider with ChangeNotifier {
 
   Future<Uint8List> generateBudgetPdf(BuildContext context) async {
     if (_clientId == null) {
-      _error = 'No se ha seleccionado o creado un cliente.';
+      final errorMessage = 'No se ha seleccionado o creado un cliente.';
+      _error = errorMessage;
       notifyListeners();
-      throw Exception(_error);
+      throw Exception(errorMessage);
     }
     final client = await getClient(_clientId!);
     if (client == null) {
-      _error = 'No se pudo cargar los datos del cliente.';
+      final errorMessage = 'No se pudo cargar los datos del cliente.';
+      _error = errorMessage;
       notifyListeners();
-      throw Exception(_error);
+      throw Exception(errorMessage);
     }
-
-    debugPrint('[BudgetProvider] generateBudgetPdf: '
-        'client=${client.razonSocial}, '
-        'product=${_product!.name}, '
-        'currency=$_currency, '
-        'price=$_price, '
-        'capital=${_price! - (_delivery ?? 0)}, '
-        'numberOfInstallments=$_numberOfInstallments, '
-        'amortizationScheduleLength=${_amortizationSchedule?.length}, '
-        'lifeInsuranceAmount=$_lifeInsuranceAmount');
 
     try {
       final pdfBytes = await _pdfGenerator.generateBudgetPdf(
@@ -476,18 +398,12 @@ class BudgetProvider with ChangeNotifier {
         validityOffer: _validityOffer,
         commercialConditions: _commercialConditions,
         benefits: _benefits,
-        lifeInsuranceAmount:
-            _lifeInsuranceAmount, // Pasar monto del seguro de vida
+        lifeInsuranceAmount: _lifeInsuranceAmount,
       );
-      // START MODIFICATION
-      debugPrint(
-          '[BudgetProvider] PDF generated with ${pdfBytes.length} bytes.');
-      // END MODIFICATION
       _error = null;
       return pdfBytes;
     } catch (e) {
       _error = 'Error al generar el PDF: $e';
-      debugPrint('PDF Error: $e');
       notifyListeners();
       rethrow;
     }
@@ -510,45 +426,10 @@ class BudgetProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = 'Error al generar o compartir el PDF: $e';
-      debugPrint('PDF Error: $e');
       notifyListeners();
     }
-    notifyListeners();
   }
 
-//funcion para tomar el valor de la base de datos
-  Future<double> _fetchInterestRate() async {
-    try {
-      // Usamos el ID del documento que se ve en tu captura de pantalla
-      final doc = await FirebaseFirestore.instance
-          .collection('interes')
-          .doc('IRpKwkAvGtFuBVQZTKwe')
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        final interestString = data['interes'] as String; // "9,5"
-
-        // 1. Reemplazar la coma por un punto: "9,5" -> "9.5"
-        // 2. Convertir a double: "9.5" -> 9.5
-        // 3. Dividir por 100 para obtener la tasa decimal: 9.5 -> 0.095
-        final doubleRate =
-            double.parse(interestString.replaceAll(',', '.')) / 100;
-
-        debugPrint(
-            '[BudgetProvider] Tasa de interés obtenida de Firebase: $doubleRate');
-        return doubleRate;
-      }
-    } catch (e) {
-      debugPrint('Error al obtener la tasa de interés de Firebase: $e');
-    }
-
-    // Si hay un error o no se encuentra el dato, usamos la tasa por defecto
-    debugPrint('[BudgetProvider] Usando tasa de interés por defecto: 0.095');
-    return 0.095;
-  }
-
-//fin de la funcion
   void clear() {
     _client = null;
     _clientId = null;
@@ -566,10 +447,11 @@ class BudgetProvider with ChangeNotifier {
     _numberOfReinforcements = null;
     _reinforcementAmount = null;
     _reinforcementMonth = null;
+    _reinforcementYear = null;
     _validityOffer = null;
     _commercialConditions = null;
     _benefits = null;
-    _lifeInsuranceAmount = null; // Limpiar monto del seguro de vida
+    _lifeInsuranceAmount = null;
     _amortizationSchedule = null;
     _clients = [];
     _error = null;

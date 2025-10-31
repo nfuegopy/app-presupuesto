@@ -1,39 +1,59 @@
+// Archivo: lib/features/budgets/presentation/utils/amortization_calculator.dart
+
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 class AmortizationCalculator {
-  static List<Map<String, dynamic>> calculateFrenchAmortization({
-    required double capital,
+  static List<Map<String, dynamic>> calculateFlatRateAmortization({
+    required double capital, // Saldo a financiar (Precio - Entrega)
     required int numberOfInstallments,
+    required double coefficient, // Coeficiente proporcionado por el contador
     Map<int, double>? reinforcements,
-    String? reinforcementMonth,
     String paymentFrequency = 'Mensual',
-    required double annualNominalRate, // Ahora es requerido y no puede ser nulo
   }) {
-    // PASO 1: LÓGICA DE CONFIGURACIÓN ORIGINAL
-    const double gastosAdministrativos = 50.0;
-    final double capitalConDeducciones = capital + gastosAdministrativos;
+    debugPrint('--- INICIO CÁLCULO DE AMORTIZACIÓN (TASA PLANA) ---');
+    debugPrint(
+        '[CALC] Saldo a Financiar (Capital): ${capital.toStringAsFixed(2)}');
+    debugPrint(
+        '[CALC] Coeficiente de Financiación: ${coefficient.toStringAsFixed(4)}');
+    debugPrint('[CALC] Número de Cuotas: $numberOfInstallments');
 
-    // =======================================================================
-    // LÍNEA MODIFICADA: Se eliminó el valor de respaldo `?? 0.095`
-    // Ahora, la tasa anual DEBE ser proporcionada.
-    // =======================================================================
-    double effectiveAnnualRate = annualNominalRate;
-    // =======================================================================
-
-    double monthlyRate = effectiveAnnualRate / 12;
-    double periodicRate;
-    switch (paymentFrequency) {
-      case 'Trimestral':
-        periodicRate = pow(1 + monthlyRate, 3) - 1;
-        break;
-      case 'Semestral':
-        periodicRate = pow(1 + monthlyRate, 6) - 1;
-        break;
-      case 'Mensual':
-      default:
-        periodicRate = monthlyRate;
+    double roundDouble(double value, int places) {
+      num mod = pow(10.0, places);
+      return ((value * mod).round().toDouble() / mod);
     }
+
+    // --- GASTOS ADMINISTRATIVOS DESACTIVADOS ---
+    // const double gastosAdministrativos = 50.0;
+    // final double capitalConGastos = capital + gastosAdministrativos;
+    // debugPrint('[CALC] Capital + Gastos Adm: ${capitalConGastos.toStringAsFixed(2)}');
+    // En su lugar, usamos el capital directamente:
+    final double capitalConGastos = capital;
+    // --- FIN DE LA MODIFICACIÓN ---
+
+    final double totalFinanciado = capitalConGastos * coefficient;
+    final double cuotaFija =
+        roundDouble(totalFinanciado / numberOfInstallments, 2);
+
+    debugPrint(
+        '[CALC] Total Financiado (Capital * Coeficiente): ${totalFinanciado.toStringAsFixed(2)}');
+    debugPrint('[CALC] Cuota Fija Calculada: ${cuotaFija.toStringAsFixed(2)}');
+
+    final double totalIntereses = totalFinanciado - capitalConGastos;
+    final double interesPorCuota =
+        roundDouble(totalIntereses / numberOfInstallments, 2);
+    final double capitalPorCuota = roundDouble(cuotaFija - interesPorCuota, 2);
+
+    debugPrint(
+        '[CALC] Interés Total del Préstamo: ${totalIntereses.toStringAsFixed(2)}');
+    debugPrint(
+        '[CALC] Interés Fijo por Cuota: ${interesPorCuota.toStringAsFixed(2)}');
+    debugPrint(
+        '[CALC] Capital Fijo por Cuota: ${capitalPorCuota.toStringAsFixed(2)}');
+    debugPrint('--- INICIO GENERACIÓN DE TABLA ---');
+
+    List<Map<String, dynamic>> schedule = [];
+    double remainingCapital = capitalConGastos;
 
     final now = DateTime.now();
     const months = [
@@ -50,87 +70,7 @@ class AmortizationCalculator {
       'Noviembre',
       'Diciembre'
     ];
-
-    // PASO 2: LÓGICA DE CÁLCULO DE REFUERZOS (SIN CAMBIOS)
-    Map<int, double> adjustedReinforcements = reinforcements ?? {};
-    if (reinforcementMonth != null &&
-        reinforcements != null &&
-        reinforcements.isNotEmpty) {
-      adjustedReinforcements = {};
-      int reinforcementMonthIndex = months.indexOf(reinforcementMonth);
-      int cuotasPerReinforcement = 12;
-
-      List<int> keys = reinforcements.keys.toList()..sort();
-      if (keys.length > 1) {
-        cuotasPerReinforcement = keys[1] - keys[0];
-      } else if (paymentFrequency == 'Semestral') {
-        cuotasPerReinforcement = 6;
-      }
-
-      int currentMonthIndex = now.month - 1;
-      int monthsToFirstReinforcement =
-          (reinforcementMonthIndex - currentMonthIndex + 12) % 12;
-      if (monthsToFirstReinforcement == 0) monthsToFirstReinforcement = 12;
-
-      int firstReinforcementCuota = monthsToFirstReinforcement;
-      switch (paymentFrequency) {
-        case 'Trimestral':
-          firstReinforcementCuota = (monthsToFirstReinforcement / 3).ceil();
-          break;
-        case 'Semestral':
-          firstReinforcementCuota = (monthsToFirstReinforcement / 6).ceil();
-          break;
-      }
-
-      int cuota = firstReinforcementCuota;
-      for (var key in keys) {
-        if (cuota <= numberOfInstallments) {
-          adjustedReinforcements[cuota] = reinforcements[key]!;
-          cuota += cuotasPerReinforcement;
-        }
-      }
-    }
-
-    // PASO 3: LÓGICA DE CORRECCIÓN DE CUOTA (SIN CAMBIOS)
-    double fixedMonthlyPayment;
-    final bool hasReinforcements = adjustedReinforcements.isNotEmpty;
-    if (hasReinforcements) {
-      double presentValueOfReinforcements = 0.0;
-      adjustedReinforcements.forEach((quotaNumber, amount) {
-        presentValueOfReinforcements +=
-            amount / pow(1 + periodicRate, quotaNumber);
-      });
-      double adjustedCapital =
-          capitalConDeducciones - presentValueOfReinforcements;
-      fixedMonthlyPayment = (adjustedCapital *
-              periodicRate *
-              pow(1 + periodicRate, numberOfInstallments)) /
-          (pow(1 + periodicRate, numberOfInstallments) - 1);
-    } else {
-      fixedMonthlyPayment = (capitalConDeducciones *
-              periodicRate *
-              pow(1 + periodicRate, numberOfInstallments)) /
-          (pow(1 + periodicRate, numberOfInstallments) - 1);
-    }
-
-    // PASO 4: GENERACIÓN DE LA TABLA (SIN CAMBIOS)
-    List<Map<String, dynamic>> schedule = [];
-    double remainingCapital = capitalConDeducciones;
-    int initialMonthIndexValue;
-    int currentActualMonthZeroIndexed = now.month - 1;
-    switch (paymentFrequency) {
-      case 'Trimestral':
-        initialMonthIndexValue = currentActualMonthZeroIndexed + 3;
-        break;
-      case 'Semestral':
-        initialMonthIndexValue = currentActualMonthZeroIndexed + 6;
-        break;
-      case 'Mensual':
-      default:
-        initialMonthIndexValue = currentActualMonthZeroIndexed + 1;
-        break;
-    }
-    int monthIndex = initialMonthIndexValue;
+    int monthIndex = now.month;
 
     for (int i = 1; i <= numberOfInstallments; i++) {
       if (i > 1) {
@@ -147,61 +87,55 @@ class AmortizationCalculator {
         }
       }
 
-      if (remainingCapital < 0.01) remainingCapital = 0;
+      double principalPagado = capitalPorCuota;
+      double pagoTotalEsteMes = cuotaFija;
 
-      double interest = remainingCapital * periodicRate;
-      double reinforcement = adjustedReinforcements[i] ?? 0;
-      double totalPaymentThisMonth = fixedMonthlyPayment + reinforcement;
-      double principal;
-
-      if (i == numberOfInstallments && remainingCapital > 0) {
-        principal = remainingCapital;
-        totalPaymentThisMonth = principal + interest;
-      } else {
-        principal = totalPaymentThisMonth - interest;
+      if (i == numberOfInstallments) {
+        principalPagado = remainingCapital;
       }
 
-      if (principal > remainingCapital) {
-        principal = remainingCapital;
-      }
-      remainingCapital -= principal;
+      remainingCapital -= principalPagado;
+      if (remainingCapital < 0) remainingCapital = 0;
 
-      String monthName = months[monthIndex % 12];
-      int daysToDueDate;
-      switch (paymentFrequency) {
-        case 'Mensual':
-          daysToDueDate = i * 30;
-          break;
-        case 'Trimestral':
-          daysToDueDate = i * 90;
-          break;
-        case 'Semestral':
-          daysToDueDate = i * 180;
-          break;
-        default:
-          daysToDueDate = i * 30;
-      }
-      double discountedValue = (totalPaymentThisMonth) *
-          (1 - annualNominalRate * (daysToDueDate / 360));
+      debugPrint('CUOTA $i:'
+          ' Capital Pendiente: ${roundDouble(remainingCapital + principalPagado, 2).toStringAsFixed(2)} |'
+          ' Intereses: ${interesPorCuota.toStringAsFixed(2)} |'
+          ' Amortización Capital: ${principalPagado.toStringAsFixed(2)} |'
+          ' Pago Total: ${pagoTotalEsteMes.toStringAsFixed(2)} |'
+          ' Nuevo Capital Pendiente: ${remainingCapital.toStringAsFixed(2)}');
 
       schedule.add({
         'cuota': i,
-        'month': monthName,
-        'capital': principal,
-        'intereses': interest,
-        'pago_total': totalPaymentThisMonth,
-        'capital_pendiente': remainingCapital > 0 ? remainingCapital : 0,
-        'valor_descontado': discountedValue,
+        'month': months[monthIndex % 12],
+        'capital': principalPagado,
+        'intereses': interesPorCuota,
+        'pago_total': pagoTotalEsteMes,
+        'capital_pendiente': remainingCapital,
+      });
+    }
+
+    if (reinforcements != null && reinforcements.isNotEmpty) {
+      debugPrint('--- AÑADIENDO REFUERZOS A LA TABLA ---');
+      reinforcements.forEach((cuotaIndex, monto) {
+        var existingInstallment = schedule.firstWhere(
+            (inst) => inst['cuota'] == cuotaIndex,
+            orElse: () => {});
+        if (existingInstallment.isNotEmpty) {
+          existingInstallment['pago_total'] += monto;
+          debugPrint(
+              '[CALC] Refuerzo de ${monto.toStringAsFixed(2)} añadido a la cuota $cuotaIndex. Nuevo total: ${existingInstallment['pago_total']}');
+        }
       });
     }
 
     if (schedule.isNotEmpty) {
       schedule.first.addAll({
-        'gastos_administrativos': gastosAdministrativos,
-        'monto_entregado': capitalConDeducciones,
+        // 'gastos_administrativos': gastosAdministrativos, // Comentado
+        'monto_entregado': capitalConGastos,
       });
     }
 
+    debugPrint('--- FIN CÁLCULO DE AMORTIZACIÓN (TASA PLANA) ---');
     return schedule;
   }
 }
