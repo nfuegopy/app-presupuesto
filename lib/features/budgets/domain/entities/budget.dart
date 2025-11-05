@@ -22,6 +22,7 @@ class Budget {
 
   final String createdBy;
   final String createdAt;
+  final double? deliveryVehicle;
 
   Budget({
     required this.id,
@@ -45,5 +46,6 @@ class Budget {
     required this.createdBy,
     required this.createdAt,
     String? commercialConditions,
+    this.deliveryVehicle,
   });
 }

@@ -17,8 +17,8 @@ class BudgetModel {
   final double? reinforcementAmount;
   final String? validityOffer;
   final String? benefits;
-  final double?
-      lifeInsuranceAmount; // Nuevo: Campo para el monto del seguro de vida
+  final double? lifeInsuranceAmount;
+  final double? deliveryVehicle;
 
   final String createdBy;
   final String createdAt;
@@ -40,8 +40,8 @@ class BudgetModel {
     this.reinforcementAmount,
     this.validityOffer,
     this.benefits,
-    this.lifeInsuranceAmount, // Nuevo: Añadido al constructor
-
+    this.lifeInsuranceAmount,
+    this.deliveryVehicle,
     required this.createdBy,
     required this.createdAt,
   });
@@ -63,8 +63,8 @@ class BudgetModel {
       'reinforcementAmount': reinforcementAmount,
       'validityOffer': validityOffer,
       'benefits': benefits,
-      'lifeInsuranceAmount': lifeInsuranceAmount, // Nuevo: Añadido a toMap
-
+      'lifeInsuranceAmount': lifeInsuranceAmount,
+      'deliveryVehicle': deliveryVehicle,
       'createdBy': createdBy,
       'createdAt': createdAt,
     };
@@ -88,9 +88,8 @@ class BudgetModel {
       reinforcementAmount: data['reinforcementAmount']?.toDouble(),
       validityOffer: data['validityOffer'],
       benefits: data['benefits'],
-      lifeInsuranceAmount:
-          data['lifeInsuranceAmount']?.toDouble(), // Nuevo: Añadido a fromMap
-
+      lifeInsuranceAmount: data['lifeInsuranceAmount']?.toDouble(),
+      deliveryVehicle: data['deliveryVehicle']?.toDouble(),
       createdBy: data['createdBy'],
       createdAt: data['createdAt'],
     );

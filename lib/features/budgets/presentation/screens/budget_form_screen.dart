@@ -1,6 +1,6 @@
 // budgets/presentation/screens/budget_form_screen.dart
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // <-- ¡CORREGIDO!
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
@@ -35,6 +35,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _telefonoController = TextEditingController();
   final _priceController = TextEditingController();
   final _deliveryController = TextEditingController();
+  final _deliveryVehicleController = TextEditingController(); // Nuevo
   final _numberOfInstallmentsController = TextEditingController();
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
@@ -140,6 +141,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _telefonoController.dispose();
     _priceController.dispose();
     _deliveryController.dispose();
+    _deliveryVehicleController.dispose(); // Nuevo
     _numberOfInstallmentsController.dispose();
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
@@ -457,7 +459,14 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _deliveryController,
-                label: 'Entrega',
+                label: 'Entrega (Efectivo)', // Etiqueta actualizada
+                keyboardType: TextInputType.number,
+                isRequired: false,
+              ),
+              const SizedBox(height: 16),
+              CustomTextField(
+                controller: _deliveryVehicleController,
+                label: 'Entrega Vehículo (Parte de Pago)',
                 keyboardType: TextInputType.number,
                 isRequired: false,
               ),
@@ -755,6 +764,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       ? double.parse(_deliveryController.text)
                       : 0.0;
 
+                  final deliveryVehicle =
+                      _deliveryVehicleController.text.isNotEmpty
+                          ? double.parse(_deliveryVehicleController.text)
+                          : 0.0;
+
                   final numberOfInstallments =
                       _numberOfInstallmentsController.text.isNotEmpty
                           ? int.parse(_numberOfInstallmentsController.text)
@@ -766,6 +780,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     paymentMethod: _paymentMethod ?? 'Contado',
                     financingType: _financingType,
                     delivery: delivery,
+                    deliveryVehicle: deliveryVehicle, // Nuevo
                     paymentFrequency: _paymentFrequency,
                     numberOfInstallments: numberOfInstallments,
                     hasReinforcements: _hasReinforcements,
@@ -810,8 +825,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     throw Exception(budgetProvider.error);
                   }
 
-                  if (context.mounted)
+                  if (context.mounted) {
                     Navigator.of(context).pop(); // Dismiss loading dialog
+                  }
 
                   final client =
                       await budgetProvider.getClient(budgetProvider.clientId!);

@@ -43,6 +43,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
       benefits: budget.benefits,
       createdBy: budget.createdBy,
       createdAt: budget.createdAt,
+      deliveryVehicle: budget.deliveryVehicle,
     );
 
     await _firestore

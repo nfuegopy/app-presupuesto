@@ -36,6 +36,7 @@ class BudgetProvider with ChangeNotifier {
   String? _commercialConditions;
   String? _benefits;
   double? _lifeInsuranceAmount;
+  double? _deliveryVehicle;
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
 
@@ -59,6 +60,7 @@ class BudgetProvider with ChangeNotifier {
   String? get commercialConditions => _commercialConditions;
   String? get benefits => _benefits;
   double? get lifeInsuranceAmount => _lifeInsuranceAmount;
+  double? get deliveryVehicle => _deliveryVehicle;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
 
@@ -151,6 +153,7 @@ class BudgetProvider with ChangeNotifier {
     String? validityOffer,
     String? commercialConditions,
     String? benefits,
+    double? deliveryVehicle,
   }) async {
     _currency = currency;
     _price = price;
@@ -168,6 +171,7 @@ class BudgetProvider with ChangeNotifier {
     _validityOffer = validityOffer;
     _commercialConditions = commercialConditions;
     _benefits = benefits;
+    _deliveryVehicle = deliveryVehicle;
     _error = null;
 
     // --- SEGURO DE VIDA DESACTIVADO ---
@@ -187,7 +191,9 @@ class BudgetProvider with ChangeNotifier {
 
       // La variable 'effectivePrice' ahora solo usa el precio, ya que el seguro está desactivado.
       double effectivePrice = price; // + (_lifeInsuranceAmount ?? 0.0);
-      double capitalToFinance = effectivePrice - delivery;
+      // double capitalToFinance = effectivePrice - delivery;
+      double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
+      double capitalToFinance = effectivePrice - totalDelivery;
 
       final reinforcementsMap = hasReinforcements == true &&
               numberOfReinforcements != null &&
@@ -322,6 +328,7 @@ class BudgetProvider with ChangeNotifier {
         paymentMethod: _paymentMethod!,
         financingType: _financingType,
         delivery: _delivery,
+        deliveryVehicle: _deliveryVehicle,
         paymentFrequency: _paymentFrequency,
         numberOfInstallments: _numberOfInstallments,
         hasReinforcements: _hasReinforcements,
@@ -387,6 +394,7 @@ class BudgetProvider with ChangeNotifier {
         paymentMethod: _paymentMethod!,
         financingType: _financingType,
         delivery: _delivery,
+        deliveryVehicle: _deliveryVehicle,
         paymentFrequency: _paymentFrequency,
         numberOfInstallments: _numberOfInstallments,
         hasReinforcements: _hasReinforcements,
@@ -440,6 +448,7 @@ class BudgetProvider with ChangeNotifier {
     _paymentMethod = null;
     _financingType = null;
     _delivery = null;
+    _deliveryVehicle = null;
     _paymentFrequency = null;
     _numberOfInstallments = null;
     _hasReinforcements = null;

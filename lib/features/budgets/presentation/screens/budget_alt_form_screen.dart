@@ -1,6 +1,6 @@
 // budgets/presentation/screens/budget_alt_form_screen.dart
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // <-- ¡CORREGIDO!
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../../../products/presentation/providers/product_provider.dart';
@@ -34,6 +34,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
   final _telefonoController = TextEditingController();
   final _priceController = TextEditingController();
   final _deliveryController = TextEditingController();
+  final _deliveryVehicleController = TextEditingController(); // Nuevo
   final _numberOfInstallmentsController = TextEditingController();
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
@@ -136,6 +137,7 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
     _telefonoController.dispose();
     _priceController.dispose();
     _deliveryController.dispose();
+    _deliveryVehicleController.dispose(); // Nuevo
     _numberOfInstallmentsController.dispose();
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
@@ -492,11 +494,20 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _deliveryController,
-                label: 'Entrega',
+                label: 'Entrega (Efectivo)', // Etiqueta actualizada
                 keyboardType: TextInputType.number,
                 isRequired: false,
               ),
               const SizedBox(height: 16),
+              // --- INICIO: CAMPO NUEVO ---
+              CustomTextField(
+                controller: _deliveryVehicleController,
+                label: 'Entrega Vehículo (Parte de Pago)',
+                keyboardType: TextInputType.number,
+                isRequired: false,
+              ),
+              // --- FIN: CAMPO NUEVO ---
+              const SizedBox(height: 16), // Añadido SizedBox
               CustomTextField(
                 controller: _numberOfInstallmentsController,
                 label: 'Cantidad de Cuotas',
@@ -774,15 +785,23 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     throw Exception(budgetProvider.error);
                   }
 
+                  final delivery = _deliveryController.text.isNotEmpty
+                      ? double.parse(_deliveryController.text)
+                      : 0.0;
+
+                  final deliveryVehicle =
+                      _deliveryVehicleController.text.isNotEmpty
+                          ? double.parse(_deliveryVehicleController.text)
+                          : 0.0;
+
                   await budgetProvider.updatePaymentDetails(
                     currency: _currency ?? _selectedProduct!.currency,
                     price: double.tryParse(_priceController.text) ??
                         _selectedProduct!.price,
                     paymentMethod: _paymentMethod ?? 'Contado',
                     financingType: _financingType,
-                    delivery: _deliveryController.text.isNotEmpty
-                        ? double.parse(_deliveryController.text)
-                        : 0,
+                    delivery: delivery,
+                    deliveryVehicle: deliveryVehicle, // Nuevo
                     paymentFrequency: _paymentFrequency,
                     numberOfInstallments:
                         _numberOfInstallmentsController.text.isNotEmpty
@@ -828,8 +847,9 @@ class _BudgetAltFormScreenState extends State<BudgetAltFormScreen> {
                     throw Exception(budgetProvider.error);
                   }
 
-                  if (context.mounted)
+                  if (context.mounted) {
                     Navigator.of(context).pop(); // Dismiss loading dialog
+                  }
 
                   final client =
                       await budgetProvider.getClient(budgetProvider.clientId!);
