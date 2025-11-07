@@ -36,6 +36,7 @@ class BudgetProvider with ChangeNotifier {
   String? _commercialConditions;
   String? _benefits;
   double? _lifeInsuranceAmount;
+  double? _deliveryVehicle;
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
 
@@ -59,6 +60,7 @@ class BudgetProvider with ChangeNotifier {
   String? get commercialConditions => _commercialConditions;
   String? get benefits => _benefits;
   double? get lifeInsuranceAmount => _lifeInsuranceAmount;
+  double? get deliveryVehicle => _deliveryVehicle;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
 
@@ -151,6 +153,7 @@ class BudgetProvider with ChangeNotifier {
     String? validityOffer,
     String? commercialConditions,
     String? benefits,
+    double? deliveryVehicle,
   }) async {
     _currency = currency;
     _price = price;
@@ -168,14 +171,10 @@ class BudgetProvider with ChangeNotifier {
     _validityOffer = validityOffer;
     _commercialConditions = commercialConditions;
     _benefits = benefits;
+    _deliveryVehicle = deliveryVehicle;
     _error = null;
 
     // --- SEGURO DE VIDA DESACTIVADO ---
-    // if (_client != null && _client!.clientType == 'Persona Física') {
-    //   _lifeInsuranceAmount = price * 0.03;
-    // } else {
-    //   _lifeInsuranceAmount = null;
-    // }
     _lifeInsuranceAmount =
         null; // Se establece a null para omitirlo del cálculo
     // --- FIN DE LA MODIFICACIÓN ---
@@ -183,11 +182,34 @@ class BudgetProvider with ChangeNotifier {
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      const double financingCoefficient = 1.32;
+      // --- INICIO DE LA MODIFICACIÓN (Lógica Tasa Plana) ---
 
-      // La variable 'effectivePrice' ahora solo usa el precio, ya que el seguro está desactivado.
-      double effectivePrice = price; // + (_lifeInsuranceAmount ?? 0.0);
-      double capitalToFinance = effectivePrice - delivery;
+      // 1. Definir la tasa anual (1.072 -> 7.2%)
+      const double annualInterestRate = 0.072; // (1.072 - 1.0)
+
+      // 2. Calcular capital a financiar
+      double effectivePrice = price;
+      double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
+      double capitalToFinance = effectivePrice - totalDelivery;
+
+      // 3. Calcular Años de financiación (basado en cuotas mensuales)
+      // Se asume Mensual si no se especifica.
+      int installmentsPerYear = 12;
+      if (paymentFrequency == 'Trimestral') installmentsPerYear = 4;
+      if (paymentFrequency == 'Semestral') installmentsPerYear = 2;
+
+      double years = numberOfInstallments / installmentsPerYear;
+
+      // 4. Calcular el interés total (Tasa Plana)
+      // Interés = Capital * Tasa Anual * Años
+      double totalInterest = capitalToFinance * annualInterestRate * years;
+
+      // 5. Calcular Coeficiente Total
+      // (Capital + Interés) / Capital
+      double financingCoefficient =
+          (capitalToFinance + totalInterest) / capitalToFinance;
+
+      // --- FIN DE LA MODIFICACIÓN ---
 
       final reinforcementsMap = hasReinforcements == true &&
               numberOfReinforcements != null &&
@@ -196,19 +218,25 @@ class BudgetProvider with ChangeNotifier {
               reinforcementFrequency!)
           : null;
 
-      debugPrint('[BudgetProvider] Calculando amortización TASA PLANA: '
+      debugPrint(
+          '[BudgetProvider] Calculando amortización TASA PLANA (Calculada): '
           'capital a financiar=${capitalToFinance.toStringAsFixed(2)}, '
           '# de cuotas=$numberOfInstallments, '
-          'coeficiente=$financingCoefficient');
+          'Años=${years.toStringAsFixed(1)}, '
+          'Tasa Anual=${annualInterestRate.toStringAsFixed(4)}, '
+          'Coeficiente Total CALCULADO=${financingCoefficient.toStringAsFixed(4)}');
 
+      // --- INICIO DE LA MODIFICACIÓN (Llamada a la calculadora) ---
+      // Volvemos a llamar a la calculadora de Tasa Plana
       _amortizationSchedule =
           AmortizationCalculator.calculateFlatRateAmortization(
         capital: capitalToFinance,
         numberOfInstallments: numberOfInstallments,
-        coefficient: financingCoefficient,
+        coefficient: financingCoefficient, // Usamos el coeficiente calculado
         reinforcements: reinforcementsMap,
         paymentFrequency: paymentFrequency ?? 'Mensual',
       );
+      // --- FIN DE LA MODIFICACIÓN ---
     } else {
       _amortizationSchedule = null;
     }
@@ -322,6 +350,7 @@ class BudgetProvider with ChangeNotifier {
         paymentMethod: _paymentMethod!,
         financingType: _financingType,
         delivery: _delivery,
+        deliveryVehicle: _deliveryVehicle,
         paymentFrequency: _paymentFrequency,
         numberOfInstallments: _numberOfInstallments,
         hasReinforcements: _hasReinforcements,
@@ -387,6 +416,7 @@ class BudgetProvider with ChangeNotifier {
         paymentMethod: _paymentMethod!,
         financingType: _financingType,
         delivery: _delivery,
+        deliveryVehicle: _deliveryVehicle,
         paymentFrequency: _paymentFrequency,
         numberOfInstallments: _numberOfInstallments,
         hasReinforcements: _hasReinforcements,
@@ -440,6 +470,7 @@ class BudgetProvider with ChangeNotifier {
     _paymentMethod = null;
     _financingType = null;
     _delivery = null;
+    _deliveryVehicle = null;
     _paymentFrequency = null;
     _numberOfInstallments = null;
     _hasReinforcements = null;

@@ -22,6 +22,7 @@ class PdfGenerator {
     required String paymentMethod,
     String? financingType,
     double? delivery,
+    double? deliveryVehicle, // Nuevo
     String? paymentFrequency,
     int? numberOfInstallments,
     bool? hasReinforcements,
@@ -99,6 +100,10 @@ class PdfGenerator {
     final currencyFormat =
         NumberFormat.currency(locale: 'es_PY', symbol: '', decimalDigits: 0);
 
+    // --- INICIO MODIFICACIÓN ---
+    final double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
+    // --- FIN MODIFICACIÓN ---
+
     List<List<String>> financingPlans = [];
     double generatedMonthlyPayment = 0.0;
 
@@ -111,22 +116,22 @@ class PdfGenerator {
       String planName = '';
       switch (paymentFrequency) {
         case 'Mensual':
-          planName = delivery != null && delivery > 0
+          planName = totalDelivery > 0 // Modificado
               ? 'Plan mensual con entrega'
               : 'Plan mensual sin entrega';
           break;
         case 'Semestral':
-          planName = delivery != null && delivery > 0
+          planName = totalDelivery > 0 // Modificado
               ? 'Plan semestral con entrega'
               : 'Plan semestral sin entrega';
           break;
         case 'Trimestral':
-          planName = delivery != null && delivery > 0
+          planName = totalDelivery > 0 // Modificado
               ? 'Plan trimestral con entrega'
               : 'Plan trimestral sin entrega';
           break;
         case 'Anual':
-          planName = delivery != null && delivery > 0
+          planName = totalDelivery > 0 // Modificado
               ? 'Plan anual con entrega'
               : 'Plan anual sin entrega';
           break;
@@ -135,9 +140,11 @@ class PdfGenerator {
       financingPlans = [
         [
           planName,
-          delivery != null && delivery > 0
-              ? '$currency ${currencyFormat.format(delivery)}.-'
+          // --- INICIO MODIFICACIÓN ---
+          totalDelivery > 0
+              ? '$currency ${currencyFormat.format(totalDelivery)}.-'
               : '-',
+          // --- FIN MODIFICACIÓN ---
           '$currency ${currencyFormat.format(generatedMonthlyPayment)}',
           '$numberOfInstallments',
           hasReinforcements == true && numberOfReinforcements != null
@@ -227,7 +234,28 @@ class PdfGenerator {
             pw.Text(
                 'Precio Unitario: $currency ${currencyFormat.format(price)}.-',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+
+            // --- INICIO: BLOQUE NUEVO DE DESGLOSE DE ENTREGA ---
+            pw.SizedBox(height: 8),
+            pw.Text(
+                'Entrega (Efectivo): $currency ${currencyFormat.format(delivery ?? 0.0)}.-',
+                style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+            if (deliveryVehicle != null && deliveryVehicle > 0) ...[
+              pw.SizedBox(height: 4),
+              pw.Text(
+                  'Entrega (Vehículo): $currency ${currencyFormat.format(deliveryVehicle)}.-',
+                  style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                  'Entrega Total: $currency ${currencyFormat.format(totalDelivery)}.-',
+                  style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.black)),
+            ],
             pw.SizedBox(height: 16),
+            // --- FIN: BLOQUE NUEVO ---
+
             if (financingPlans.isNotEmpty) ...[
               pw.Text('FINANCIACIÓN',
                   style: pw.TextStyle(
