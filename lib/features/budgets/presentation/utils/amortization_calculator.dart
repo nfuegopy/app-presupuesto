@@ -4,10 +4,13 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 class AmortizationCalculator {
+  // --- REVERTIMOS A LA LÓGICA DE TASA PLANA ---
+
   static List<Map<String, dynamic>> calculateFlatRateAmortization({
     required double capital, // Saldo a financiar (Precio - Entrega)
     required int numberOfInstallments,
-    required double coefficient, // Coeficiente proporcionado por el contador
+    required double
+        coefficient, // Coeficiente proporcionado por el provider (ej: 1.36)
     Map<int, double>? reinforcements,
     String paymentFrequency = 'Mensual',
   }) {
@@ -90,12 +93,22 @@ class AmortizationCalculator {
       double principalPagado = capitalPorCuota;
       double pagoTotalEsteMes = cuotaFija;
 
+      // --- INICIO MODIFICACIÓN REFUERZOS ---
+      // Aplicar el refuerzo si existe en esta cuota
+      if (reinforcements != null && reinforcements.containsKey(i)) {
+        pagoTotalEsteMes += reinforcements[i]!;
+        debugPrint(
+            '[CALC] Refuerzo de ${reinforcements[i]!.toStringAsFixed(2)} añadido a la cuota $i. Nuevo total: $pagoTotalEsteMes');
+      }
+      // --- FIN MODIFICACIÓN REFUERZOS ---
+
       if (i == numberOfInstallments) {
+        // Ajuste en la última cuota
         principalPagado = remainingCapital;
       }
 
       remainingCapital -= principalPagado;
-      if (remainingCapital < 0) remainingCapital = 0;
+      if (remainingCapital < 0.01) remainingCapital = 0; // Tolerancia redondeo
 
       debugPrint('CUOTA $i:'
           ' Capital Pendiente: ${roundDouble(remainingCapital + principalPagado, 2).toStringAsFixed(2)} |'
@@ -106,7 +119,8 @@ class AmortizationCalculator {
 
       schedule.add({
         'cuota': i,
-        'month': months[monthIndex % 12],
+        'month': months[
+            (monthIndex - 1) % 12], // Ajustado para que el índice base sea 0
         'capital': principalPagado,
         'intereses': interesPorCuota,
         'pago_total': pagoTotalEsteMes,
@@ -114,19 +128,8 @@ class AmortizationCalculator {
       });
     }
 
-    if (reinforcements != null && reinforcements.isNotEmpty) {
-      debugPrint('--- AÑADIENDO REFUERZOS A LA TABLA ---');
-      reinforcements.forEach((cuotaIndex, monto) {
-        var existingInstallment = schedule.firstWhere(
-            (inst) => inst['cuota'] == cuotaIndex,
-            orElse: () => {});
-        if (existingInstallment.isNotEmpty) {
-          existingInstallment['pago_total'] += monto;
-          debugPrint(
-              '[CALC] Refuerzo de ${monto.toStringAsFixed(2)} añadido a la cuota $cuotaIndex. Nuevo total: ${existingInstallment['pago_total']}');
-        }
-      });
-    }
+    // --- LÓGICA DE REFUERZOS MOVIDA DENTRO DEL BUCLE ---
+    // (Se elimina el bucle de refuerzos que estaba aquí)
 
     if (schedule.isNotEmpty) {
       schedule.first.addAll({
