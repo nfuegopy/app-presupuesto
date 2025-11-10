@@ -243,7 +243,7 @@ class PdfGenerator {
             if (deliveryVehicle != null && deliveryVehicle > 0) ...[
               pw.SizedBox(height: 4),
               pw.Text(
-                  'Entrega (Vehículo): $currency ${currencyFormat.format(deliveryVehicle)}.-',
+                  'Entrega (Usado): $currency ${currencyFormat.format(deliveryVehicle)}.-',
                   style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
               pw.SizedBox(height: 4),
               pw.Text(

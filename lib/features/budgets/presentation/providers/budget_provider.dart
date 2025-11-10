@@ -12,6 +12,7 @@ import '../../data/models/client_model.dart';
 import '../utils/pdf_generator.dart';
 import '../utils/amortization_calculator.dart';
 import 'dart:typed_data';
+import 'dart:math'; // <-- IMPORTACIÓN REQUERIDA
 
 class BudgetProvider with ChangeNotifier {
   Client? _client;
@@ -182,32 +183,41 @@ class BudgetProvider with ChangeNotifier {
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      // --- INICIO DE LA MODIFICACIÓN (Lógica Tasa Plana) ---
+      // --- INICIO DE LA MODIFICACIÓN (Lógica Interés Compuesto Escalonado) ---
 
-      // 1. Definir la tasa anual (1.072 -> 7.2%)
-      const double annualInterestRate = 0.072; // (1.072 - 1.0)
+      // 1. Calcular Años de financiación
+      int installmentsPerYear = 12;
+      if (paymentFrequency == 'Trimestral') installmentsPerYear = 4;
+      if (paymentFrequency == 'Semestral') installmentsPerYear = 2;
+      double years = numberOfInstallments / installmentsPerYear;
 
-      // 2. Calcular capital a financiar
+      // 2. Definir la tasa (1.072)
+      const double interestMultiplier = 1.072; // (1 + 0.072)
+
+      // 3. Calcular Años CON Interés (El primer año es gratis)
+      // (e.g., 36 meses -> years = 3.0 -> yearsWithInterest = 2.0)
+      // (e.g., 24 meses -> years = 2.0 -> yearsWithInterest = 1.0)
+      // (e.g., 12 meses -> years = 1.0 -> yearsWithInterest = 0.0)
+      final double yearsWithInterest = (years > 1) ? (years - 1) : 0.0;
+
+      // 4. Calcular capital a financiar
       double effectivePrice = price;
       double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
       double capitalToFinance = effectivePrice - totalDelivery;
 
-      // 3. Calcular Años de financiación (basado en cuotas mensuales)
-      // Se asume Mensual si no se especifica.
-      int installmentsPerYear = 12;
-      if (paymentFrequency == 'Trimestral') installmentsPerYear = 4;
-      if (paymentFrequency == 'Semestral') installmentsPerYear = 2;
+      // 5. Calcular el Monto Total Financiado (Tasa Compuesta)
+      // Total = Capital * ( (1.072) ^ AñosConInterés )
+      double totalFinanciado =
+          capitalToFinance * pow(interestMultiplier, yearsWithInterest);
 
-      double years = numberOfInstallments / installmentsPerYear;
-
-      // 4. Calcular el interés total (Tasa Plana)
-      // Interés = Capital * Tasa Anual * Años
-      double totalInterest = capitalToFinance * annualInterestRate * years;
-
-      // 5. Calcular Coeficiente Total
-      // (Capital + Interés) / Capital
-      double financingCoefficient =
-          (capitalToFinance + totalInterest) / capitalToFinance;
+      // 6. Calcular Coeficiente Total (CON PROTECCIÓN DIVISIÓN CERO)
+      double financingCoefficient;
+      if (capitalToFinance <= 0) {
+        financingCoefficient = 1.0;
+      } else {
+        // (Total Financiado / Capital)
+        financingCoefficient = totalFinanciado / capitalToFinance;
+      }
 
       // --- FIN DE LA MODIFICACIÓN ---
 
@@ -219,15 +229,15 @@ class BudgetProvider with ChangeNotifier {
           : null;
 
       debugPrint(
-          '[BudgetProvider] Calculando amortización TASA PLANA (Calculada): '
+          '[BudgetProvider] Calculando amortización INTERÉS COMPUESTO (Calculada): '
           'capital a financiar=${capitalToFinance.toStringAsFixed(2)}, '
           '# de cuotas=$numberOfInstallments, '
-          'Años=${years.toStringAsFixed(1)}, '
-          'Tasa Anual=${annualInterestRate.toStringAsFixed(4)}, '
+          'Años Totales=${years.toStringAsFixed(1)}, '
+          'Años CON Interés=${yearsWithInterest.toStringAsFixed(1)}, '
           'Coeficiente Total CALCULADO=${financingCoefficient.toStringAsFixed(4)}');
 
       // --- INICIO DE LA MODIFICACIÓN (Llamada a la calculadora) ---
-      // Volvemos a llamar a la calculadora de Tasa Plana
+      // La calculadora sigue siendo TASA PLANA, pero usa nuestro coeficiente compuesto.
       _amortizationSchedule =
           AmortizationCalculator.calculateFlatRateAmortization(
         capital: capitalToFinance,
@@ -236,7 +246,7 @@ class BudgetProvider with ChangeNotifier {
         reinforcements: reinforcementsMap,
         paymentFrequency: paymentFrequency ?? 'Mensual',
       );
-      // --- FIN DE LA MODIFICACIÓN ---
+      // --- FIN DE LA MODIFICIÓN ---
     } else {
       _amortizationSchedule = null;
     }
