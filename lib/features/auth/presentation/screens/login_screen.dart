@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:local_auth/local_auth.dart'; // <-- AÑADIDO
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -24,6 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _registerPasswordController = TextEditingController();
   bool _isRegistering = false;
 
+  // --- INICIO CAMBIO: Biometría ---
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  bool _biometricsAvailable = false;
+  // --- FIN CAMBIO ---
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +38,45 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailController.text = authProvider.storedEmail!;
     }
     _registerEmailController.text = '@enginepy.com';
+
+    // --- INICIO CAMBIO: Verificar biometría ---
+    _checkBiometrics();
+    // --- FIN CAMBIO ---
   }
+
+  // --- INICIO CAMBIO: Nuevos métodos ---
+  Future<void> _checkBiometrics() async {
+    try {
+      final bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
+      final List<BiometricType> availableBiometrics =
+          await _localAuth.getAvailableBiometrics();
+
+      if (!mounted) return;
+      setState(() {
+        _biometricsAvailable =
+            canCheckBiometrics && availableBiometrics.isNotEmpty;
+      });
+    } catch (e) {
+      print('Error al verificar biometría: $e');
+    }
+  }
+
+  Future<void> _authenticate() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    try {
+      final bool didAuthenticate = await _localAuth.authenticate(
+        localizedReason: 'Por favor, autentíquese para iniciar sesión',
+      );
+
+      if (didAuthenticate && mounted) {
+        // Lógica para iniciar sesión con credenciales guardadas
+        await authProvider.signInWithBiometrics();
+      }
+    } catch (e) {
+      authProvider.setErrorMessage('Error de autenticación biométrica: $e');
+    }
+  }
+  // --- FIN CAMBIO ---
 
   @override
   void dispose() {
@@ -164,24 +208,68 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             const SizedBox(height: 16),
-                            CustomButton(
-                              text: 'Iniciar Sesión',
-                              onPressed: () {
-                                final email = _emailController.text.trim();
-                                final password =
-                                    _passwordController.text.trim();
-                                if (email.isEmpty || password.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Por favor, complete todos los campos')),
-                                  );
-                                  return;
-                                }
-                                authProvider.signIn(email, password);
-                              },
-                              isLoading: authProvider.isLoading,
+
+                            // --- INICIO CAMBIO: Botón de Login + Huella ---
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CustomButton(
+                                    text: 'Iniciar Sesión',
+                                    onPressed: () {
+                                      final email =
+                                          _emailController.text.trim();
+                                      final password =
+                                          _passwordController.text.trim();
+                                      if (email.isEmpty || password.isEmpty) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Por favor, complete todos los campos')),
+                                        );
+                                        return;
+                                      }
+                                      authProvider.signIn(email, password);
+                                    },
+                                    isLoading: authProvider.isLoading,
+                                  ),
+                                ),
+                                // Solo muestra el botón si la huella está disponible
+                                if (_biometricsAvailable) ...[
+                                  const SizedBox(width: 16),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withOpacity(0.5),
+                                        width: 1,
+                                      ),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surface
+                                          .withOpacity(0.8),
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.fingerprint,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        size: 30,
+                                      ),
+                                      onPressed: authProvider.isLoading
+                                          ? null
+                                          : _authenticate,
+                                    ),
+                                  ),
+                                ]
+                              ],
                             ),
+                            // --- FIN CAMBIO ---
+
                             const SizedBox(height: 16),
                             TextButton(
                               onPressed: () {

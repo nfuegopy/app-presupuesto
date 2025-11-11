@@ -12,4 +12,5 @@ abstract class AuthRepository {
   Future<String?> getStoredUserEmail();
   Future<void> storeUserEmail(String email);
   Future<void> resetPassword(String email);
+  Future<Map<String, String>?> getStoredCredentials(); // <-- AÑADIDO
 }
