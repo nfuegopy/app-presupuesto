@@ -3,9 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../../../products/presentation/screens/product_list_screen.dart';
-import 'coming_soon_screen.dart';
 import '../widgets/card.dart';
-import '../../../budgets/presentation/screens/budget_alt_form_screen.dart';
 import '../../../budgets/presentation/screens/clients_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -18,7 +16,6 @@ class HomeScreen extends StatelessWidget {
     final vendorName =
         user != null ? '${user.nombre} ${user.apellido}' : 'Usuario';
 
-    // Redirigir a LoginScreen si no hay usuario autenticado
     if (user == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacement(
@@ -70,15 +67,17 @@ class HomeScreen extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 32),
+
+            // --- INICIO DEL CAMBIO ---
+            // Usamos un Expanded + Column para centrar verticalmente
+            // los nuevos botones de selección.
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1, // Cuadrado
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CustomCard(
                     text: 'Productos',
+                    icon: Icons.inventory_2_outlined, // Icono de productos
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -88,8 +87,10 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ),
+                  const SizedBox(height: 20), // Espacio entre botones
                   CustomCard(
                     text: 'Clientes',
+                    icon: Icons.people_outline, // Icono de clientes
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -99,31 +100,10 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  CustomCard(
-                    text: 'Cotizaciones',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ComingSoonScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  CustomCard(
-                    text: 'Cotizar',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BudgetAltFormScreen(),
-                        ),
-                      );
-                    },
-                  ),
                 ],
               ),
             ),
+            // --- FIN DEL CAMBIO ---
           ],
         ),
       ),
