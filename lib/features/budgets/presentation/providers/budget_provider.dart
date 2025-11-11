@@ -12,7 +12,7 @@ import '../../data/models/client_model.dart';
 import '../utils/pdf_generator.dart';
 import '../utils/amortization_calculator.dart';
 import 'dart:typed_data';
-import 'dart:math'; // <-- IMPORTACIÓN REQUERIDA
+import 'dart:math'; // <-- CAMBIO: Importación requerida
 
 class BudgetProvider with ChangeNotifier {
   Client? _client;
@@ -41,6 +41,11 @@ class BudgetProvider with ChangeNotifier {
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
 
+  // --- CAMBIO: Campos de Descuento ---
+  bool _hasDiscount = false;
+  double? _realPrice;
+  double? _discountPercentage;
+
   Client? get client => _client;
   String? get clientId => _clientId;
   Product? get product => _product;
@@ -64,6 +69,11 @@ class BudgetProvider with ChangeNotifier {
   double? get deliveryVehicle => _deliveryVehicle;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
+
+  // --- CAMBIO: Getters de Descuento ---
+  bool get hasDiscount => _hasDiscount;
+  double? get realPrice => _realPrice;
+  double? get discountPercentage => _discountPercentage;
 
   final CreateBudget _createBudget;
   final PdfGenerator _pdfGenerator;
@@ -155,6 +165,10 @@ class BudgetProvider with ChangeNotifier {
     String? commercialConditions,
     String? benefits,
     double? deliveryVehicle,
+    // --- CAMBIO: Parámetros de Descuento ---
+    bool? hasDiscount,
+    double? realPrice,
+    double? discountPercentage,
   }) async {
     _currency = currency;
     _price = price;
@@ -174,6 +188,11 @@ class BudgetProvider with ChangeNotifier {
     _benefits = benefits;
     _deliveryVehicle = deliveryVehicle;
     _error = null;
+
+    // --- CAMBIO: Asignación de Descuento ---
+    _hasDiscount = hasDiscount ?? false;
+    _realPrice = realPrice;
+    _discountPercentage = discountPercentage;
 
     // --- SEGURO DE VIDA DESACTIVADO ---
     _lifeInsuranceAmount =
@@ -236,8 +255,6 @@ class BudgetProvider with ChangeNotifier {
           'Años CON Interés=${yearsWithInterest.toStringAsFixed(1)}, '
           'Coeficiente Total CALCULADO=${financingCoefficient.toStringAsFixed(4)}');
 
-      // --- INICIO DE LA MODIFICACIÓN (Llamada a la calculadora) ---
-      // La calculadora sigue siendo TASA PLANA, pero usa nuestro coeficiente compuesto.
       _amortizationSchedule =
           AmortizationCalculator.calculateFlatRateAmortization(
         capital: capitalToFinance,
@@ -246,7 +263,6 @@ class BudgetProvider with ChangeNotifier {
         reinforcements: reinforcementsMap,
         paymentFrequency: paymentFrequency ?? 'Mensual',
       );
-      // --- FIN DE LA MODIFICIÓN ---
     } else {
       _amortizationSchedule = null;
     }
@@ -373,6 +389,10 @@ class BudgetProvider with ChangeNotifier {
         lifeInsuranceAmount: _lifeInsuranceAmount,
         createdBy: user.uid,
         createdAt: DateTime.now().toIso8601String(),
+        // --- CAMBIO: Campos de Descuento ---
+        hasDiscount: _hasDiscount,
+        realPrice: _realPrice,
+        discountPercentage: _discountPercentage,
       );
 
       await _createBudget(budget);
@@ -439,6 +459,10 @@ class BudgetProvider with ChangeNotifier {
         commercialConditions: _commercialConditions,
         benefits: _benefits,
         lifeInsuranceAmount: _lifeInsuranceAmount,
+        // --- CAMBIO: Campos de Descuento ---
+        hasDiscount: _hasDiscount,
+        realPrice: _realPrice,
+        discountPercentage: _discountPercentage,
       );
       _error = null;
       return pdfBytes;
@@ -496,6 +520,12 @@ class BudgetProvider with ChangeNotifier {
     _amortizationSchedule = null;
     _clients = [];
     _error = null;
+
+    // --- CAMBIO: Limpieza de Descuento ---
+    _hasDiscount = false;
+    _realPrice = null;
+    _discountPercentage = null;
+
     notifyListeners();
   }
 }

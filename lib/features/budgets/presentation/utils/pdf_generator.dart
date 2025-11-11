@@ -22,7 +22,7 @@ class PdfGenerator {
     required String paymentMethod,
     String? financingType,
     double? delivery,
-    double? deliveryVehicle, // Nuevo
+    double? deliveryVehicle,
     String? paymentFrequency,
     int? numberOfInstallments,
     bool? hasReinforcements,
@@ -35,43 +35,60 @@ class PdfGenerator {
     String? benefits,
     String? commercialConditions,
     double? lifeInsuranceAmount,
+    // --- CAMBIO: Parámetros de Descuento ---
+    bool? hasDiscount,
+    double? realPrice,
+    double? discountPercentage,
   }) async {
+    debugPrint('[PdfGenerator] Iniciando generación de PDF...');
     final Uint8List logoData = await DefaultAssetBundle.of(context)
         .load('assets/images/logo.png')
         .then((byteData) => byteData.buffer.asUint8List());
+    debugPrint('[PdfGenerator] Logo cargado.');
 
-    final fontData = await rootBundle.load("assets/fonts/Poppins-Regular.ttf");
-    final ttf = pw.Font.ttf(fontData);
-
-    final fontBoldData = await rootBundle.load("assets/fonts/Poppins-Bold.ttf");
-    final ttfBold = pw.Font.ttf(fontBoldData);
+    // --- CAMBIO: Fuentes personalizadas eliminadas para compatibilidad web ---
+    debugPrint('[PdfGenerator] Usando fuentes PDF estándar (Helvetica).');
 
     Uint8List? productImageData;
     if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+      debugPrint(
+          '[PdfGenerator] Intentando descargar imagen principal: ${product.imageUrl}');
       try {
         final response = await http
             .get(Uri.parse(product.imageUrl!))
-            .timeout(const Duration(seconds: 10));
+            .timeout(const Duration(seconds: 4)); // Timeout reducido
         if (response.statusCode == 200) {
           productImageData = response.bodyBytes;
+          debugPrint('[PdfGenerator] Imagen principal descargada OK.');
+        } else {
+          debugPrint(
+              '[PdfGenerator] Error Imagen principal: StatusCode ${response.statusCode}');
         }
       } catch (e) {
-        debugPrint('Error downloading main image: $e');
+        debugPrint(
+            '[PdfGenerator] EXCEPCIÓN al descargar imagen principal (Probable CORS en Web): $e');
       }
     }
 
     Uint8List? descriptionImageData;
     if (product.imageDescriptionUrl != null &&
         product.imageDescriptionUrl!.isNotEmpty) {
+      debugPrint(
+          '[PdfGenerator] Intentando descargar imagen descripción: ${product.imageDescriptionUrl}');
       try {
         final response = await http
             .get(Uri.parse(product.imageDescriptionUrl!))
-            .timeout(const Duration(seconds: 10));
+            .timeout(const Duration(seconds: 4)); // Timeout reducido
         if (response.statusCode == 200) {
           descriptionImageData = response.bodyBytes;
+          debugPrint('[PdfGenerator] Imagen descripción descargada OK.');
+        } else {
+          debugPrint(
+              '[PdfGenerator] Error Imagen descripción: StatusCode ${response.statusCode}');
         }
       } catch (e) {
-        debugPrint('Error downloading description image: $e');
+        debugPrint(
+            '[PdfGenerator] EXCEPCIÓN al descargar imagen descripción (Probable CORS en Web): $e');
       }
     }
 
@@ -100,9 +117,7 @@ class PdfGenerator {
     final currencyFormat =
         NumberFormat.currency(locale: 'es_PY', symbol: '', decimalDigits: 0);
 
-    // --- INICIO MODIFICACIÓN ---
     final double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
-    // --- FIN MODIFICACIÓN ---
 
     List<List<String>> financingPlans = [];
     double generatedMonthlyPayment = 0.0;
@@ -116,22 +131,22 @@ class PdfGenerator {
       String planName = '';
       switch (paymentFrequency) {
         case 'Mensual':
-          planName = totalDelivery > 0 // Modificado
+          planName = totalDelivery > 0
               ? 'Plan mensual con entrega'
               : 'Plan mensual sin entrega';
           break;
         case 'Semestral':
-          planName = totalDelivery > 0 // Modificado
+          planName = totalDelivery > 0
               ? 'Plan semestral con entrega'
               : 'Plan semestral sin entrega';
           break;
         case 'Trimestral':
-          planName = totalDelivery > 0 // Modificado
+          planName = totalDelivery > 0
               ? 'Plan trimestral con entrega'
               : 'Plan trimestral sin entrega';
           break;
         case 'Anual':
-          planName = totalDelivery > 0 // Modificado
+          planName = totalDelivery > 0
               ? 'Plan anual con entrega'
               : 'Plan anual sin entrega';
           break;
@@ -140,11 +155,9 @@ class PdfGenerator {
       financingPlans = [
         [
           planName,
-          // --- INICIO MODIFICACIÓN ---
           totalDelivery > 0
               ? '$currency ${currencyFormat.format(totalDelivery)}.-'
               : '-',
-          // --- FIN MODIFICACIÓN ---
           '$currency ${currencyFormat.format(generatedMonthlyPayment)}',
           '$numberOfInstallments',
           hasReinforcements == true && numberOfReinforcements != null
@@ -157,11 +170,13 @@ class PdfGenerator {
       ];
     }
 
+    debugPrint('[PdfGenerator] Preparando build de páginas...');
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
+        // --- CAMBIO: Tema de fuente eliminado ---
         header: (pw.Context context) {
           if (context.pageNumber == 1) return pw.Container();
           return pw.Column(
@@ -225,25 +240,52 @@ class PdfGenerator {
             pw.SizedBox(height: 8),
             pw.Text(product.name, style: pw.TextStyle(fontSize: 14)),
             pw.SizedBox(height: 8),
+
             if (descriptionImageData != null) ...[
               pw.Center(
                   child: pw.Image(pw.MemoryImage(descriptionImageData),
                       width: 400, fit: pw.BoxFit.contain)),
               pw.SizedBox(height: 12),
             ],
-            pw.Text(
-                'Precio Unitario: $currency ${currencyFormat.format(price)}.-',
-                style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
 
-            // --- INICIO: BLOQUE NUEVO DE DESGLOSE DE ENTREGA ---
+            // --- CAMBIO: Lógica de Descuento en PDF ---
+            if (hasDiscount == true &&
+                realPrice != null &&
+                discountPercentage != null) ...[
+              pw.Text(
+                  'Monto Real: $currency ${currencyFormat.format(realPrice)}.-',
+                  style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                  'Descuento Aplicado: ${currencyFormat.format(discountPercentage)}%',
+                  style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                  'Precio Unitario (con dcto): $currency ${currencyFormat.format(price)}.-',
+                  style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.black)),
+            ] else ...[
+              pw.Text(
+                  'Precio Unitario: $currency ${currencyFormat.format(price)}.-',
+                  style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.black)),
+            ],
+            // --- FIN CAMBIO DESCUENTO ---
+
+            // --- BLOQUE DESGLOSE DE ENTREGA ---
             pw.SizedBox(height: 8),
             pw.Text(
                 'Entrega (Efectivo): $currency ${currencyFormat.format(delivery ?? 0.0)}.-',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
             if (deliveryVehicle != null && deliveryVehicle > 0) ...[
               pw.SizedBox(height: 4),
+              // --- CAMBIO: Texto "Entrega Usado" ---
               pw.Text(
-                  'Entrega (Usado): $currency ${currencyFormat.format(deliveryVehicle)}.-',
+                  'Entrega Usado: $currency ${currencyFormat.format(deliveryVehicle)}.-',
                   style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
               pw.SizedBox(height: 4),
               pw.Text(
@@ -254,7 +296,7 @@ class PdfGenerator {
                       color: PdfColors.black)),
             ],
             pw.SizedBox(height: 16),
-            // --- FIN: BLOQUE NUEVO ---
+            // --- FIN BLOQUE DESGLOSE ---
 
             if (financingPlans.isNotEmpty) ...[
               pw.Text('FINANCIACIÓN',
@@ -309,12 +351,10 @@ class PdfGenerator {
                     color: redColor)));
             content.add(pw.SizedBox(height: 8));
 
-            // --- ESTA ES LA LÓGICA MEJORADA ---
             const int maxRowsPerColumn = 24;
             const int maxColumnsPerRow = 3;
             final List<pw.Widget> tableWidgets = [];
 
-            // 1. Convertir los datos de las cuotas en widgets de Tabla
             for (int i = 0;
                 i < (schedule.length / maxRowsPerColumn).ceil();
                 i++) {
@@ -359,7 +399,6 @@ class PdfGenerator {
                   )));
             }
 
-            // 2. Organizar los widgets de Tabla en filas (Rows)
             for (int i = 0; i < tableWidgets.length; i += maxColumnsPerRow) {
               content.add(pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
@@ -410,6 +449,9 @@ class PdfGenerator {
                   child: pw.Image(pw.MemoryImage(productImageData),
                       width: 400, fit: pw.BoxFit.contain)));
               content.add(pw.SizedBox(height: 16));
+            } else {
+              debugPrint(
+                  '[PdfGenerator] No se encontró productImageData, omitiendo.');
             }
 
             if (commercialConditions != null &&
@@ -473,6 +515,7 @@ class PdfGenerator {
       ),
     );
 
+    debugPrint('[PdfGenerator] Generación de PDF completada. Guardando...');
     return pdf.save();
   }
 }

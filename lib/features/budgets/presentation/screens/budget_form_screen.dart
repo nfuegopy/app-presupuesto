@@ -1,6 +1,6 @@
 // budgets/presentation/screens/budget_form_screen.dart
 
-import 'package:flutter/material.dart'; // <-- ¡CORREGIDO!
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
@@ -35,7 +35,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _telefonoController = TextEditingController();
   final _priceController = TextEditingController();
   final _deliveryController = TextEditingController();
-  final _deliveryVehicleController = TextEditingController(); // Nuevo
+  final _deliveryVehicleController = TextEditingController();
   final _numberOfInstallmentsController = TextEditingController();
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
@@ -46,6 +46,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _benefitsController = TextEditingController();
   final _reinforcementYearController =
       TextEditingController(text: (DateTime.now().year + 1).toString());
+
+  // --- CAMBIO: Campos de Descuento ---
+  bool _hasDiscount = false;
+  final _realPriceController = TextEditingController();
+  final _discountPercentageController = TextEditingController();
+
   String _searchQuery = '';
   bool _isNewClient = false;
   ClientModel? _selectedClient;
@@ -59,7 +65,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   bool? _hasReinforcements;
   String? _reinforcementFrequency;
   String? _reinforcementMonth;
-  String? _clientType; // Nuevo: Tipo de cliente (Física/Jurídica)
+  String? _clientType;
 
   bool _isLoading = false;
 
@@ -141,7 +147,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _telefonoController.dispose();
     _priceController.dispose();
     _deliveryController.dispose();
-    _deliveryVehicleController.dispose(); // Nuevo
+    _deliveryVehicleController.dispose();
     _numberOfInstallmentsController.dispose();
     _numberOfReinforcementsController.dispose();
     _reinforcementAmountController.dispose();
@@ -149,6 +155,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _commercialConditionsController.dispose();
     _benefitsController.dispose();
     _reinforcementYearController.dispose();
+
+    // --- CAMBIO: Dispose de Descuento ---
+    _realPriceController.dispose();
+    _discountPercentageController.dispose();
+
     super.dispose();
   }
 
@@ -422,9 +433,45 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               },
             ),
             const SizedBox(height: 16),
+
+            // --- CAMBIO: UI de Descuento ---
+            CustomDwBudget<bool>(
+              label: '¿Aplicar Descuento?',
+              value: _hasDiscount,
+              items: const [
+                {'value': false, 'label': 'No'},
+                {'value': true, 'label': 'Sí'},
+              ],
+              itemToString: (item) => item['label'] as String,
+              onChanged: (item) {
+                setState(() {
+                  _hasDiscount = item != null ? item['value'] as bool : false;
+                });
+              },
+            ),
+            if (_hasDiscount) ...[
+              const SizedBox(height: 16),
+              CustomTextField(
+                controller: _realPriceController,
+                label: 'Monto Real (sin descuento)',
+                keyboardType: TextInputType.number,
+                isRequired: false,
+              ),
+              const SizedBox(height: 16),
+              CustomTextField(
+                controller: _discountPercentageController,
+                label: 'Porcentaje Descuento Aplicado (%)',
+                keyboardType: TextInputType.number,
+                isRequired: false,
+              ),
+            ],
+            const SizedBox(height: 16),
+            // --- FIN CAMBIO UI ---
+
             CustomTextField(
               controller: _priceController,
-              label: 'Precio',
+              // --- CAMBIO: Etiqueta de Precio Dinámica ---
+              label: _hasDiscount ? 'Precio Final (con Descuento)' : 'Precio',
               keyboardType: TextInputType.number,
               isRequired: true,
             ),
@@ -687,6 +734,17 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 }
                 // --- End Client-side Validations ---
 
+                // --- CAMBIO: Lectura de Descuento ---
+                final realPrice = _realPriceController.text.isNotEmpty
+                    ? double.tryParse(
+                        _realPriceController.text.replaceAll(',', '.'))
+                    : null;
+                final discountPercentage = _discountPercentageController
+                        .text.isNotEmpty
+                    ? double.tryParse(
+                        _discountPercentageController.text.replaceAll(',', '.'))
+                    : null;
+
                 setState(() {
                   _isLoading = true;
                 });
@@ -780,7 +838,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     paymentMethod: _paymentMethod ?? 'Contado',
                     financingType: _financingType,
                     delivery: delivery,
-                    deliveryVehicle: deliveryVehicle, // Nuevo
+                    deliveryVehicle: deliveryVehicle,
                     paymentFrequency: _paymentFrequency,
                     numberOfInstallments: numberOfInstallments,
                     hasReinforcements: _hasReinforcements,
@@ -802,6 +860,10 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     commercialConditions:
                         _commercialConditionsController.text.trim(),
                     benefits: _benefitsController.text.trim(),
+                    // --- CAMBIO: Pasar Descuento ---
+                    hasDiscount: _hasDiscount,
+                    realPrice: realPrice,
+                    discountPercentage: discountPercentage,
                   );
 
                   if (budgetProvider.error != null) {
@@ -809,14 +871,22 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   }
 
                   debugPrint(
-                      '[BudgetFormScreen] Llamando a BudgetProvider.createBudget');
+                      '[BudgetFormScreen] PASO 1: updatePaymentDetails TERMINADO.');
+
+                  debugPrint(
+                      '[BudgetFormScreen] PASO 2: Llamando a BudgetProvider.createBudget (Guardando en Firebase)...');
                   await budgetProvider.createBudget();
                   if (budgetProvider.error != null) {
                     throw Exception(budgetProvider.error);
                   }
 
-                  // START MODIFICATION: Navigate to PdfPreviewScreen
+                  debugPrint(
+                      '[BudgetFormScreen] PASO 3: createBudget TERMINADO.');
+
                   if (!context.mounted) return;
+
+                  debugPrint(
+                      '[BudgetFormScreen] PASO 4: Llamando a generateBudgetPdf (Descargando imágenes)...');
 
                   final pdfBytes =
                       await budgetProvider.generateBudgetPdf(context);
@@ -824,6 +894,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   if (budgetProvider.error != null) {
                     throw Exception(budgetProvider.error);
                   }
+
+                  debugPrint(
+                      '[BudgetFormScreen] PASO 5: generateBudgetPdf TERMINADO.');
 
                   if (context.mounted) {
                     Navigator.of(context).pop(); // Dismiss loading dialog
@@ -852,7 +925,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   ).then((_) {
                     Navigator.pop(context);
                   });
-                  // END MODIFICATION
                 } catch (e) {
                   debugPrint('Unexpected error during budget generation: $e');
                   if (context.mounted) {

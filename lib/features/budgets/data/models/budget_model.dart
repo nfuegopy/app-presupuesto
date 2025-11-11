@@ -1,3 +1,4 @@
+// budgets/data/models/budget_model.dart
 import '../../../products/data/models/product_model.dart';
 
 class BudgetModel {
@@ -19,6 +20,11 @@ class BudgetModel {
   final String? benefits;
   final double? lifeInsuranceAmount;
   final double? deliveryVehicle;
+
+  // --- CAMBIO: Campos de Descuento ---
+  final bool? hasDiscount;
+  final double? realPrice;
+  final double? discountPercentage;
 
   final String createdBy;
   final String createdAt;
@@ -44,6 +50,10 @@ class BudgetModel {
     this.deliveryVehicle,
     required this.createdBy,
     required this.createdAt,
+    // --- CAMBIO: Campos de Descuento ---
+    this.hasDiscount,
+    this.realPrice,
+    this.discountPercentage,
   });
 
   Map<String, dynamic> toMap() {
@@ -67,6 +77,10 @@ class BudgetModel {
       'deliveryVehicle': deliveryVehicle,
       'createdBy': createdBy,
       'createdAt': createdAt,
+      // --- CAMBIO: Campos de Descuento ---
+      'hasDiscount': hasDiscount,
+      'realPrice': realPrice,
+      'discountPercentage': discountPercentage,
     };
   }
 
@@ -92,6 +106,10 @@ class BudgetModel {
       deliveryVehicle: data['deliveryVehicle']?.toDouble(),
       createdBy: data['createdBy'],
       createdAt: data['createdAt'],
+      // --- CAMBIO: Campos de Descuento ---
+      hasDiscount: data['hasDiscount'],
+      realPrice: data['realPrice']?.toDouble(),
+      discountPercentage: data['discountPercentage']?.toDouble(),
     );
   }
 }

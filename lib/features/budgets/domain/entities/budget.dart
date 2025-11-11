@@ -1,3 +1,4 @@
+// budgets/domain/entities/budget.dart
 import '../../../products/domain/entities/product.dart';
 
 class Budget {
@@ -24,6 +25,11 @@ class Budget {
   final String createdAt;
   final double? deliveryVehicle;
 
+  // --- CAMBIO: Campos de Descuento ---
+  final bool? hasDiscount;
+  final double? realPrice;
+  final double? discountPercentage;
+
   Budget({
     required this.id,
     required this.clientId,
@@ -47,5 +53,10 @@ class Budget {
     required this.createdAt,
     String? commercialConditions,
     this.deliveryVehicle,
+
+    // --- CAMBIO: Campos de Descuento ---
+    this.hasDiscount,
+    this.realPrice,
+    this.discountPercentage,
   });
 }
