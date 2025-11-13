@@ -279,13 +279,13 @@ class PdfGenerator {
             // --- BLOQUE DESGLOSE DE ENTREGA ---
             pw.SizedBox(height: 8),
             pw.Text(
-                'Entrega (Efectivo): $currency ${currencyFormat.format(delivery ?? 0.0)}.-',
+                'Entrega inicial: $currency ${currencyFormat.format(delivery ?? 0.0)}.-',
                 style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
             if (deliveryVehicle != null && deliveryVehicle > 0) ...[
               pw.SizedBox(height: 4),
               // --- CAMBIO: Texto "Entrega Usado" ---
               pw.Text(
-                  'Entrega Usado: $currency ${currencyFormat.format(deliveryVehicle)}.-',
+                  'Entrega de usado: $currency ${currencyFormat.format(deliveryVehicle)}.-',
                   style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
               pw.SizedBox(height: 4),
               pw.Text(
