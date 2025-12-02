@@ -12,7 +12,7 @@ import '../../data/models/client_model.dart';
 import '../utils/pdf_generator.dart';
 import '../utils/amortization_calculator.dart';
 import 'dart:typed_data';
-import 'dart:math'; // <-- CAMBIO: Importación requerida
+import 'dart:math';
 
 class BudgetProvider with ChangeNotifier {
   Client? _client;
@@ -214,9 +214,6 @@ class BudgetProvider with ChangeNotifier {
       const double interestMultiplier = 1.072; // (1 + 0.072)
 
       // 3. Calcular Años CON Interés (El primer año es gratis)
-      // (e.g., 36 meses -> years = 3.0 -> yearsWithInterest = 2.0)
-      // (e.g., 24 meses -> years = 2.0 -> yearsWithInterest = 1.0)
-      // (e.g., 12 meses -> years = 1.0 -> yearsWithInterest = 0.0)
       final double yearsWithInterest = (years > 1) ? (years - 1) : 0.0;
 
       // 4. Calcular capital a financiar
@@ -225,7 +222,6 @@ class BudgetProvider with ChangeNotifier {
       double capitalToFinance = effectivePrice - totalDelivery;
 
       // 5. Calcular el Monto Total Financiado (Tasa Compuesta)
-      // Total = Capital * ( (1.072) ^ AñosConInterés )
       double totalFinanciado =
           capitalToFinance * pow(interestMultiplier, yearsWithInterest);
 
@@ -234,17 +230,21 @@ class BudgetProvider with ChangeNotifier {
       if (capitalToFinance <= 0) {
         financingCoefficient = 1.0;
       } else {
-        // (Total Financiado / Capital)
         financingCoefficient = totalFinanciado / capitalToFinance;
       }
 
       // --- FIN DE LA MODIFICACIÓN ---
 
+      // Lógica corregida para generar refuerzos alineados a las cuotas
       final reinforcementsMap = hasReinforcements == true &&
               numberOfReinforcements != null &&
               reinforcementAmount != null
-          ? _generateReinforcements(numberOfReinforcements, reinforcementAmount,
-              reinforcementFrequency!)
+          ? _generateReinforcements(
+              numberOfReinforcements,
+              reinforcementAmount,
+              reinforcementFrequency!,
+              paymentFrequency ?? 'Mensual', // Pasamos la frecuencia de pago
+            )
           : null;
 
       debugPrint(
@@ -259,7 +259,7 @@ class BudgetProvider with ChangeNotifier {
           AmortizationCalculator.calculateFlatRateAmortization(
         capital: capitalToFinance,
         numberOfInstallments: numberOfInstallments,
-        coefficient: financingCoefficient, // Usamos el coeficiente calculado
+        coefficient: financingCoefficient,
         reinforcements: reinforcementsMap,
         paymentFrequency: paymentFrequency ?? 'Mensual',
       );
@@ -270,27 +270,66 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Map<int, double> _generateReinforcements(int numberOfReinforcements,
-      double reinforcementAmount, String frequency) {
+  // --- MÉTODO CORREGIDO PARA GENERAR REFUERZOS ---
+  Map<int, double> _generateReinforcements(
+    int numberOfReinforcements,
+    double reinforcementAmount,
+    String reinforcementFrequency,
+    String paymentFrequency,
+  ) {
     Map<int, double> reinforcements = {};
-    int interval;
-    switch (frequency) {
+
+    // 1. Determinar intervalo de meses de la CUOTA (Divisor)
+    int paymentInterval;
+    switch (paymentFrequency) {
       case 'Trimestral':
-        interval = 3;
+        paymentInterval = 3;
         break;
       case 'Semestral':
-        interval = 6;
+        paymentInterval = 6;
         break;
       case 'Anual':
-        interval = 12;
+        paymentInterval = 12;
         break;
       default:
-        interval = 12;
+        paymentInterval = 1; // Mensual
     }
+
+    // 2. Determinar intervalo de meses del REFUERZO (Multiplicador)
+    int reinforcementInterval;
+    switch (reinforcementFrequency) {
+      case 'Trimestral':
+        reinforcementInterval = 3;
+        break;
+      case 'Semestral':
+        reinforcementInterval = 6;
+        break;
+      case 'Anual':
+        reinforcementInterval = 12;
+        break;
+      default:
+        reinforcementInterval = 12;
+    }
+
     for (int i = 1; i <= numberOfReinforcements; i++) {
-      reinforcements[i * interval] = reinforcementAmount;
+      // Mes absoluto donde cae el refuerzo (ej: Refuerzo anual 1 = Mes 12)
+      int monthOfReinforcement = i * reinforcementInterval;
+
+      // Calcular a qué número de CUOTA corresponde ese mes
+      // Ejemplo: Mes 12 / Semestral (6) = Cuota #2
+      if (monthOfReinforcement % paymentInterval == 0) {
+        int installmentIndex = monthOfReinforcement ~/ paymentInterval;
+        reinforcements[installmentIndex] = reinforcementAmount;
+      } else {
+        // Aquí podrías manejar el caso si un refuerzo cae en un mes donde no hay cuota
+        // (Por ahora se omite si no coincide exactamente)
+        debugPrint(
+            '[BudgetProvider] ADVERTENCIA: Refuerzo en mes $monthOfReinforcement no coincide con frecuencia de pago $paymentFrequency');
+      }
     }
-    debugPrint('[BudgetProvider] Refuerzos generados: $reinforcements');
+
+    debugPrint(
+        '[BudgetProvider] Refuerzos generados (Cuota -> Monto): $reinforcements');
     return reinforcements;
   }
 
