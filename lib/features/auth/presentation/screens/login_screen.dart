@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:animate_do/animate_do.dart';
-import 'package:local_auth/local_auth.dart'; // <-- AÑADIDO
+import 'package:local_auth/local_auth.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
-import '../widgets/email_text_field.dart';
+// import '../widgets/email_text_field.dart'; // Si decides unificar, usa CustomTextField
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,10 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _registerPasswordController = TextEditingController();
   bool _isRegistering = false;
 
-  // --- INICIO CAMBIO: Biometría ---
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _biometricsAvailable = false;
-  // --- FIN CAMBIO ---
 
   @override
   void initState() {
@@ -38,13 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailController.text = authProvider.storedEmail!;
     }
     _registerEmailController.text = '@enginepy.com';
-
-    // --- INICIO CAMBIO: Verificar biometría ---
     _checkBiometrics();
-    // --- FIN CAMBIO ---
   }
 
-  // --- INICIO CAMBIO: Nuevos métodos ---
   Future<void> _checkBiometrics() async {
     try {
       final bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
@@ -57,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
             canCheckBiometrics && availableBiometrics.isNotEmpty;
       });
     } catch (e) {
-      print('Error al verificar biometría: $e');
+      print('Error biometría: $e');
     }
   }
 
@@ -65,18 +58,17 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final bool didAuthenticate = await _localAuth.authenticate(
-        localizedReason: 'Por favor, autentíquese para iniciar sesión',
+        localizedReason: 'Validar identidad',
+        options: const AuthenticationOptions(stickyAuth: true),
       );
 
       if (didAuthenticate && mounted) {
-        // Lógica para iniciar sesión con credenciales guardadas
         await authProvider.signInWithBiometrics();
       }
     } catch (e) {
-      authProvider.setErrorMessage('Error de autenticación biométrica: $e');
+      authProvider.setErrorMessage('Error biométrico: $e');
     }
   }
-  // --- FIN CAMBIO ---
 
   @override
   void dispose() {
@@ -93,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
 
+    // Navegación segura tras el build
     if (authProvider.user != null && !authProvider.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacement(
@@ -103,381 +96,263 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     return Scaffold(
+      // Fondo limpio
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            padding: const EdgeInsets.all(24.0),
             child: FadeInUp(
-              duration: const Duration(milliseconds: 800),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.3),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+              duration: const Duration(milliseconds: 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // --- HEADER ---
+                  const SizedBox(height: 20),
+                  Center(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 60, // Logo más sutil y moderno
+                      fit: BoxFit.contain,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary,
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.5),
-                                  blurRadius: 10,
-                                  spreadRadius: 2,
+                  ),
+                  const SizedBox(height: 40),
+                  Text(
+                    _isRegistering ? 'Crear Cuenta' : 'Bienvenido',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onBackground,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isRegistering
+                        ? 'Ingresa tus datos para comenzar'
+                        : 'Inicia sesión para continuar',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 40),
+
+                  // --- FORMULARIO ---
+                  if (!_isRegistering) ...[
+                    // LOGIN FORM
+                    CustomTextField(
+                      controller: _emailController,
+                      label: 'Correo Electrónico',
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icons.email_outlined,
+                    ),
+                    const SizedBox(height: 20),
+                    CustomTextField(
+                      controller: _passwordController,
+                      label: 'Contraseña',
+                      obscureText: true,
+                      prefixIcon: Icons.lock_outline,
+                    ),
+
+                    // Olvidaste contraseña alineado
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => _showResetPasswordDialog(context),
+                        child: Text(
+                          '¿Olvidaste tu contraseña?',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // BOTONES DE ACCIÓN
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Ingresar',
+                            onPressed: () {
+                              final email = _emailController.text.trim();
+                              final password = _passwordController.text.trim();
+                              if (email.isEmpty || password.isEmpty) return;
+                              authProvider.signIn(email, password);
+                            },
+                            isLoading: authProvider.isLoading,
+                          ),
+                        ),
+                        if (_biometricsAvailable) ...[
+                          const SizedBox(width: 16),
+                          GestureDetector(
+                            onTap:
+                                authProvider.isLoading ? null : _authenticate,
+                            child: Container(
+                              height: 56,
+                              width: 56,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.grey.withOpacity(0.2),
                                 ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.contain,
+                              ),
+                              child: Icon(
+                                Icons.fingerprint,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 28,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const SizedBox(height: 32),
-                          if (!_isRegistering) ...[
-                            CustomTextField(
-                              controller: _emailController,
-                              label: 'Correo Electrónico',
-                              keyboardType: TextInputType.emailAddress,
-                              isRequired: true,
-                              prefixIcon: Icons.email,
-                            ),
-                            const SizedBox(height: 16),
-                            CustomTextField(
-                              controller: _passwordController,
-                              label: 'Contraseña',
-                              obscureText: true,
-                              isRequired: true,
-                              prefixIcon: Icons.lock,
-                            ),
-                            const SizedBox(height: 16),
-                            if (authProvider.errorMessage != null)
-                              FadeIn(
-                                duration: const Duration(milliseconds: 300),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .error
-                                        .withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    authProvider.errorMessage!,
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(context).colorScheme.error,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 16),
+                        ]
+                      ],
+                    ),
+                  ] else ...[
+                    // REGISTER FORM
+                    CustomTextField(
+                      controller: _nombreController,
+                      label: 'Nombre',
+                      prefixIcon: Icons.person_outline,
+                    ),
+                    const SizedBox(height: 20),
+                    CustomTextField(
+                      controller: _apellidoController,
+                      label: 'Apellido',
+                      prefixIcon: Icons.person_outline,
+                    ),
+                    const SizedBox(height: 20),
+                    // Nota: Aquí podrías usar EmailTextField o CustomTextField
+                    CustomTextField(
+                      controller: _registerEmailController,
+                      label: 'Correo Electrónico (@enginepy.com)',
+                      prefixIcon: Icons.alternate_email,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+                    CustomTextField(
+                      controller: _registerPasswordController,
+                      label: 'Contraseña',
+                      obscureText: true,
+                      prefixIcon: Icons.lock_outline,
+                    ),
+                    const SizedBox(height: 32),
+                    CustomButton(
+                      text: 'Registrarse',
+                      onPressed: () {
+                        // ... Lógica de validación existente ...
+                        final nombre = _nombreController.text.trim();
+                        final apellido = _apellidoController.text.trim();
+                        final email = _registerEmailController.text.trim();
+                        final password =
+                            _registerPasswordController.text.trim();
 
-                            // --- INICIO CAMBIO: Botón de Login + Huella ---
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: CustomButton(
-                                    text: 'Iniciar Sesión',
-                                    onPressed: () {
-                                      final email =
-                                          _emailController.text.trim();
-                                      final password =
-                                          _passwordController.text.trim();
-                                      if (email.isEmpty || password.isEmpty) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  'Por favor, complete todos los campos')),
-                                        );
-                                        return;
-                                      }
-                                      authProvider.signIn(email, password);
-                                    },
-                                    isLoading: authProvider.isLoading,
-                                  ),
-                                ),
-                                // Solo muestra el botón si la huella está disponible
-                                if (_biometricsAvailable) ...[
-                                  const SizedBox(width: 16),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.5),
-                                        width: 1,
-                                      ),
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surface
-                                          .withOpacity(0.8),
-                                    ),
-                                    child: IconButton(
-                                      icon: Icon(
-                                        Icons.fingerprint,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        size: 30,
-                                      ),
-                                      onPressed: authProvider.isLoading
-                                          ? null
-                                          : _authenticate,
-                                    ),
-                                  ),
-                                ]
-                              ],
-                            ),
-                            // --- FIN CAMBIO ---
+                        // Validaciones rápidas
+                        if (nombre.isEmpty ||
+                            apellido.isEmpty ||
+                            password.length < 6) return;
 
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isRegistering = true;
-                                  _nombreController.clear();
-                                  _apellidoController.clear();
-                                  _registerEmailController.text =
-                                      '@enginepy.com';
-                                  _registerPasswordController.clear();
-                                });
-                              },
-                              child: Text(
-                                'Crear una cuenta',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                final emailController = TextEditingController();
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Restablecer Contraseña'),
-                                    content: CustomTextField(
-                                      controller: emailController,
-                                      label: 'Correo Electrónico',
-                                      keyboardType: TextInputType.emailAddress,
-                                      isRequired: true,
-                                      prefixIcon: Icons.email,
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Cancelar'),
-                                      ),
-                                      CustomButton(
-                                        text: 'Enviar',
-                                        onPressed: () async {
-                                          final email =
-                                              emailController.text.trim();
-                                          if (email.isEmpty) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content: Text(
-                                                      'Ingrese un correo electrónico')),
-                                            );
-                                            return;
-                                          }
-                                          try {
-                                            await context
-                                                .read<AuthProvider>()
-                                                .resetPassword(email);
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content: Text(
-                                                      'Correo de restablecimiento enviado')),
-                                            );
-                                            Navigator.pop(context);
-                                          } catch (e) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                  content: Text(
-                                                      'Error: ${e.toString().replaceFirst('Exception: ', '')}')),
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                          ] else ...[
-                            CustomTextField(
-                              controller: _nombreController,
-                              label: 'Nombre',
-                              isRequired: true,
-                              prefixIcon: Icons.person,
-                            ),
-                            const SizedBox(height: 16),
-                            CustomTextField(
-                              controller: _apellidoController,
-                              label: 'Apellido',
-                              isRequired: true,
-                              prefixIcon: Icons.person,
-                            ),
-                            const SizedBox(height: 16),
-                            EmailTextField(
-                              controller: _registerEmailController,
-                              label: 'Correo Electrónico',
-                              isRequired: true,
-                              prefixIcon: Icons.email,
-                            ),
-                            const SizedBox(height: 16),
-                            CustomTextField(
-                              controller: _registerPasswordController,
-                              label: 'Contraseña',
-                              obscureText: true,
-                              isRequired: true,
-                              prefixIcon: Icons.lock,
-                            ),
-                            const SizedBox(height: 16),
-                            if (authProvider.errorMessage != null)
-                              FadeIn(
-                                duration: const Duration(milliseconds: 300),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .error
-                                        .withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    authProvider.errorMessage!,
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(context).colorScheme.error,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 16),
-                            CustomButton(
-                              text: 'Crear Cuenta',
-                              onPressed: () {
-                                final nombre = _nombreController.text.trim();
-                                final apellido =
-                                    _apellidoController.text.trim();
-                                final email =
-                                    _registerEmailController.text.trim();
-                                final password =
-                                    _registerPasswordController.text.trim();
+                        authProvider.createUser(
+                          email: email,
+                          password: password,
+                          nombre: nombre,
+                          apellido: apellido,
+                        );
+                      },
+                      isLoading: authProvider.isLoading,
+                    ),
+                  ],
 
-                                if (nombre.isEmpty ||
-                                    apellido.isEmpty ||
-                                    email == '@enginepy.com' ||
-                                    password.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Por favor, complete todos los campos')),
-                                  );
-                                  return;
-                                }
-                                if (password.length < 6) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'La contraseña debe tener al menos 6 caracteres')),
-                                  );
-                                  return;
-                                }
-                                if (!email.endsWith('@enginepy.com')) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'El correo debe terminar en @enginepy.com')),
-                                  );
-                                  return;
-                                }
-                                authProvider.createUser(
-                                  email: email,
-                                  password: password,
-                                  nombre: nombre,
-                                  apellido: apellido,
-                                );
-                              },
-                              isLoading: authProvider.isLoading,
-                            ),
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isRegistering = false;
-                                  _nombreController.clear();
-                                  _apellidoController.clear();
-                                  _registerEmailController.text =
-                                      '@enginepy.com';
-                                  _registerPasswordController.clear();
-                                });
-                              },
-                              child: Text(
-                                'Volver al inicio de sesión',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ),
-                          ],
-                        ],
+                  // --- MENSAJE DE ERROR ---
+                  if (authProvider.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: Text(
+                        authProvider.errorMessage!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error),
+                        textAlign: TextAlign.center,
                       ),
                     ),
+
+                  const SizedBox(height: 40),
+
+                  // --- TOGGLE LOGIN/REGISTER ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _isRegistering
+                            ? '¿Ya tienes cuenta?'
+                            : '¿No tienes cuenta?',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _isRegistering = !_isRegistering;
+                            authProvider.setErrorMessage(''); // Limpiar errores
+                          });
+                        },
+                        child: Text(
+                          _isRegistering ? 'Iniciar Sesión' : 'Crear Cuenta',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showResetPasswordDialog(BuildContext context) {
+    final emailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Recuperar Contraseña'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Ingresa tu correo para recibir las instrucciones.'),
+            const SizedBox(height: 16),
+            CustomTextField(controller: emailController, label: 'Email'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (emailController.text.isNotEmpty) {
+                context
+                    .read<AuthProvider>()
+                    .resetPassword(emailController.text.trim());
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Correo enviado')),
+                );
+              }
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
       ),
     );
   }

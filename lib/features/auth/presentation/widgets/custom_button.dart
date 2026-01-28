@@ -14,46 +14,39 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed:
-          isLoading ? null : onPressed, // Deshabilitar cuando está cargando
-      style: ElevatedButton.styleFrom(
-        minimumSize:
-            const Size(double.infinity, 50), // Ancho completo, altura 50
-        padding: const EdgeInsets.symmetric(
-            horizontal: 24, vertical: 12), // Más padding
-        backgroundColor: Theme.of(context)
-            .colorScheme
-            .primary
-            .withOpacity(0.8), // Fondo translúcido
-        foregroundColor: Colors.white, // Color del texto/iconos
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12), // Bordes redondeados
-          side: BorderSide(
-            color: Theme.of(context)
-                .colorScheme
-                .primary
-                .withOpacity(0.5), // Borde neón
-            width: 1,
+    return SizedBox(
+      width: double.infinity,
+      height: 56, // Altura estándar moderna (más fácil de tocar)
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          elevation: 0, // Sin elevación (flat design)
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
-        elevation: 4, // Sombra sutil
-        shadowColor: Colors.black.withOpacity(0.2), // Color de la sombra
-        textStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold, // Texto más destacado
-        ),
-      ),
-      child: isLoading
-          ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        child: isLoading
+            ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+              )
+            : Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
               ),
-            )
-          : Text(text),
+      ),
     );
   }
 }

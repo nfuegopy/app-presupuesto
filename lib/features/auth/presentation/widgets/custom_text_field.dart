@@ -24,49 +24,63 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      obscureText: obscureText,
-      style: Theme.of(context).textTheme.bodyMedium,
-      decoration: InputDecoration(
-        labelText: isRequired ? '$label *' : label,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, color: Theme.of(context).colorScheme.primary)
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary, // Borde neón
-            width: 1,
+    // Minimalismo: Colores suaves según el tema (claro/oscuro)
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fillColor = isDark ? Colors.grey[900] : Colors.grey[100];
+    final iconColor = isDark ? Colors.grey[500] : Colors.grey[600];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Etiqueta fuera del campo para mayor limpieza (Estilo 2025)
+        Text(
+          isRequired ? '$label *' : label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color:
+                    Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+              ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          obscureText: obscureText,
+          style: Theme.of(context).textTheme.bodyMedium,
+          decoration: InputDecoration(
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, color: iconColor, size: 20)
+                : null,
+            filled: true,
+            fillColor: fillColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16), // Bordes más suaves
+              borderSide: BorderSide.none, // Sin borde por defecto
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.transparent),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 1.5,
+              ),
+            ),
+            errorText: errorText ??
+                (isRequired &&
+                        controller.text.isEmpty &&
+                        controller.text
+                            .isNotEmpty // Solo mostrar si se intentó escribir
+                    ? 'Campo obligatorio'
+                    : null),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-            width: 1,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFF00E5FF), // Borde neón más brillante al enfocar
-            width: 2,
-          ),
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface.withOpacity(0.8),
-        errorText: errorText ??
-            (isRequired && controller.text.isEmpty
-                ? 'Este campo es obligatorio'
-                : null),
-        errorStyle: TextStyle(color: Theme.of(context).colorScheme.error),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
+      ],
     );
   }
 }

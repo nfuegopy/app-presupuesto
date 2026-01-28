@@ -1,23 +1,21 @@
-// budgets/presentation/screens/budget_form_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:animate_do/animate_do.dart';
+import 'package:printing/printing.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
+
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
 import '../../../auth/presentation/widgets/custom_dropdown.dart';
-import '../widgets/custom_enabled_dropdown.dart';
-import '../widgets/custom_dw_budget.dart';
 import '../../../products/domain/entities/product.dart';
 import '../widgets/custom_tags_input_field.dart';
 import '../widgets/client_search_select.dart';
 import '../../data/models/client_model.dart';
 import '../../data/models/paraguay_location.dart';
 import '../utils/reinforcement_validator.dart';
-import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
-import 'pdf_preview_screen.dart'; // Importa la pantalla de previsualización
-import 'package:printing/printing.dart';
+import 'pdf_preview_screen.dart';
 
 class BudgetFormScreen extends StatefulWidget {
   final Product product;
@@ -29,6 +27,7 @@ class BudgetFormScreen extends StatefulWidget {
 }
 
 class _BudgetFormScreenState extends State<BudgetFormScreen> {
+  // --- CONTROLADORES ---
   final _razonSocialController = TextEditingController();
   final _rucController = TextEditingController();
   final _emailController = TextEditingController();
@@ -40,22 +39,23 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   final _numberOfReinforcementsController = TextEditingController();
   final _reinforcementAmountController = TextEditingController();
   final _validityOfferController =
-      TextEditingController(text: 'Valido 15 dias');
+      TextEditingController(text: 'Válido 15 días');
   final _commercialConditionsController =
-      TextEditingController(text: 'Plazo de Entrega 10 dias');
+      TextEditingController(text: 'Plazo de Entrega 10 días');
   final _benefitsController = TextEditingController();
   final _reinforcementYearController =
       TextEditingController(text: (DateTime.now().year + 1).toString());
 
-  // --- CAMBIO: Campos de Descuento ---
+  // Descuento
   bool _hasDiscount = false;
   final _realPriceController = TextEditingController();
   final _discountPercentageController = TextEditingController();
 
+  // --- ESTADO ---
+  // ignore: unused_field
   String _searchQuery = '';
   bool _isNewClient = false;
   ClientModel? _selectedClient;
-
   String? _ciudad;
   String? _departamento;
   String? _currency;
@@ -66,9 +66,9 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   String? _reinforcementFrequency;
   String? _reinforcementMonth;
   String? _clientType;
-
   bool _isLoading = false;
 
+  // Datos Geográficos
   List<ParaguayLocation> _locations = [];
   List<String> _departamentos = [];
   List<String> _ciudades = [];
@@ -89,7 +89,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   ];
 
   final List<String> benefitOptions = [
-    'Garantia: 12 meses o 2.000 horas',
+    'Garantía: 12 meses o 2.000 horas',
     'Transferencia',
     'Flete',
     'Primer Mantenimiento',
@@ -99,7 +99,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     'Rastrillo',
     'Tumbador',
     'Garra Forestal',
-    'Tercera Via Hidraulica',
+    'Tercera Vía Hidráulica',
   ];
 
   @override
@@ -155,11 +155,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _commercialConditionsController.dispose();
     _benefitsController.dispose();
     _reinforcementYearController.dispose();
-
-    // --- CAMBIO: Dispose de Descuento ---
     _realPriceController.dispose();
     _discountPercentageController.dispose();
-
     super.dispose();
   }
 
@@ -167,18 +164,26 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Confirmación'),
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: const Text('Confirmar Presupuesto'),
             content: const Text(
-              '¿Confirmas que realizaste el cálculo del presupuesto incluyendo los costos de beneficios y otros conceptos?',
+              '¿Has verificado todos los costos, incluyendo beneficios y descuentos?',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('No'),
+                child: const Text('Revisar'),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Sí'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Confirmar'),
               ),
             ],
           ),
@@ -190,113 +195,142 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   Widget build(BuildContext context) {
     final budgetProvider = Provider.of<BudgetProvider>(context);
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
-        title: const Text('Formulario de Presupuesto'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'Volver',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: Theme.of(context).colorScheme.onBackground),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Nuevo Presupuesto',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onBackground,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          16.0,
-          16.0,
-          16.0,
-          16.0 + bottomPadding + 16.0,
-        ),
+        padding: EdgeInsets.fromLTRB(24, 10, 24, 24 + bottomPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Datos de la Máquina',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // --- HEADER DE MÁQUINA (DISEÑO ULTRA-MINIMALISTA) ---
+            FadeInDown(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withOpacity(0.1)),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      'Máquina Seleccionada: ${widget.product.name}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tipo: ${widget.product.type}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    Text(
-                      'Precio: ${widget.product.price} ${widget.product.currency}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    // Imagen pequeña
                     if (widget.product.imageUrl != null)
-                      Image.network(
-                        widget.product.imageUrl!,
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(
-                          Icons.broken_image,
-                          size: 100,
-                          color: Colors.grey,
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          image: DecorationImage(
+                            image: NetworkImage(widget.product.imageUrl!),
+                            fit: BoxFit.cover,
+                          ),
                         ),
+                      )
+                    else
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child:
+                            Icon(Icons.construction, color: Colors.grey[400]),
                       ),
+                    const SizedBox(width: 16),
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.product.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${widget.product.price} ${widget.product.currency}',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
+
             const SizedBox(height: 32),
-            Text(
-              'Datos del Cliente',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
+            _buildSectionTitle('Datos del Cliente'),
             const SizedBox(height: 16),
+
+            // --- SELECCIÓN DE CLIENTE ---
             Row(
               children: [
-                Checkbox(
-                  value: _isNewClient,
-                  onChanged: (value) {
-                    setState(() {
-                      _isNewClient = value ?? false;
-                      _selectedClient = null;
-                      if (_isNewClient) {
-                        _razonSocialController.clear();
-                        _rucController.clear();
-                        _emailController.clear();
-                        _telefonoController.clear();
-                        _ciudad = null;
-                        _departamento = null;
-                        _updateCiudades(null);
-                        _clientType =
-                            null; // Limpiar tipo de cliente para nuevo cliente
-                      }
-                    });
-                  },
+                SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: Checkbox(
+                    value: _isNewClient,
+                    activeColor: Theme.of(context).colorScheme.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6)),
+                    onChanged: (value) {
+                      setState(() {
+                        _isNewClient = value ?? false;
+                        _selectedClient = null;
+                        if (_isNewClient) {
+                          // Limpiar formulario para nuevo cliente
+                          _razonSocialController.clear();
+                          _rucController.clear();
+                          _emailController.clear();
+                          _telefonoController.clear();
+                          _ciudad = null;
+                          _departamento = null;
+                          _updateCiudades(null);
+                          _clientType = null;
+                        }
+                      });
+                    },
+                  ),
                 ),
-                const Text('Cliente Nuevo'),
+                const SizedBox(width: 8),
+                Text(
+                  'Es Cliente Nuevo',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
             const SizedBox(height: 16),
+
+            // Si NO es nuevo, mostrar buscador
             if (!_isNewClient)
               ClientSearchSelect(
                 clients: budgetProvider.clients,
@@ -304,6 +338,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   setState(() {
                     _selectedClient = client;
                     if (client != null) {
+                      // Autocompletar datos
                       _razonSocialController.text = client.razonSocial;
                       _rucController.text = client.ruc;
                       _emailController.text = client.email ?? '';
@@ -311,8 +346,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _ciudad = client.ciudad;
                       _departamento = client.departamento;
                       _updateCiudades(_departamento);
-                      _clientType = client
-                          .clientType; // Establecer tipo de cliente desde cliente existente
+                      _clientType = client.clientType;
+
                       budgetProvider.updateClient(
                         razonSocial: client.razonSocial,
                         ruc: client.ruc,
@@ -320,10 +355,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         telefono: client.telefono,
                         ciudad: client.ciudad,
                         departamento: client.departamento,
-                        clientType: client.clientType, // Pasar tipo de cliente
+                        clientType: client.clientType,
                         selectedClientId: client.id,
                       );
                     } else {
+                      // Limpiar si se deselecciona
                       _razonSocialController.clear();
                       _rucController.clear();
                       _emailController.clear();
@@ -331,149 +367,156 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       _ciudad = null;
                       _departamento = null;
                       _updateCiudades(null);
-                      _clientType = null; // Limpiar tipo de cliente
+                      _clientType = null;
+
                       budgetProvider.updateClient(
                         razonSocial: '',
                         ruc: '',
-                        email: null,
-                        telefono: null,
-                        ciudad: null,
-                        departamento: null,
-                        clientType: null, // Pasar null para tipo de cliente
                         selectedClientId: null,
                       );
                     }
                   });
                 },
-                onSearchChanged: (query) {
-                  _searchQuery = query;
-                },
+                onSearchChanged: (query) => _searchQuery = query,
               ),
+
+            // Si ES nuevo, mostrar campos obligatorios extra
             if (_isNewClient) ...[
               CustomDropdown(
-                // Nuevo: Dropdown de Tipo de Cliente
                 label: 'Tipo de Cliente',
                 value: _clientType,
                 items: const ['Persona Física', 'Persona Jurídica'],
-                onChanged: (value) {
-                  setState(() {
-                    _clientType = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _clientType = value),
               ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _razonSocialController,
                 label: 'Razón Social',
                 isRequired: true,
+                prefixIcon: Icons.business,
               ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _rucController,
                 label: 'RUC',
                 isRequired: true,
+                prefixIcon: Icons.badge_outlined,
               ),
             ],
+
             const SizedBox(height: 16),
             CustomTextField(
               controller: _emailController,
               label: 'E-mail',
               keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.email_outlined,
             ),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _telefonoController,
               label: 'Teléfono',
               keyboardType: TextInputType.phone,
+              prefixIcon: Icons.phone_outlined,
             ),
             const SizedBox(height: 16),
-            CustomEnabledDropdown(
-              label: 'Departamento',
-              value: _departamento,
-              items: _departamentos,
-              onChanged: _updateCiudades,
-            ),
-            const SizedBox(height: 16),
-            CustomEnabledDropdown(
-              label: 'Ciudad',
-              value: _ciudad,
-              items: _ciudades,
-              onChanged: (value) {
-                setState(() {
-                  _ciudad = value;
-                });
-              },
-              enabled: _departamento != null,
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Propuesta de Pago',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Expanded(
+                  child: CustomDropdown(
+                    label: 'Departamento',
+                    value: _departamento,
+                    items: _departamentos,
+                    onChanged: _updateCiudades,
                   ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Datos del Préstamo',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: CustomDropdown(
+                    label: 'Ciudad',
+                    value: _ciudad,
+                    items: _ciudades,
+                    onChanged: _departamento != null
+                        ? (value) => setState(() => _ciudad = value)
+                        : null,
                   ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 40),
+            _buildSectionTitle('Plan Financiero'),
+            const SizedBox(height: 20),
+
+            // --- MONEDA ---
             CustomDropdown(
               label: 'Moneda',
               value: _currency,
               items: const ['USD', 'GS'],
-              onChanged: (value) {
-                setState(() {
-                  _currency = value;
-                });
-              },
+              onChanged: (value) => setState(() => _currency = value),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            // --- CAMBIO: UI de Descuento ---
-            CustomDwBudget<bool>(
-              label: '¿Aplicar Descuento?',
-              value: _hasDiscount,
-              items: const [
-                {'value': false, 'label': 'No'},
-                {'value': true, 'label': 'Sí'},
-              ],
-              itemToString: (item) => item['label'] as String,
-              onChanged: (item) {
-                setState(() {
-                  _hasDiscount = item != null ? item['value'] as bool : false;
-                });
-              },
+            // --- SECCIÓN DE DESCUENTO (REDITADA PARA CLARIDAD) ---
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Aquí aplicamos el cambio solicitado: Título claro y opciones explícitas
+                  CustomDropdown(
+                    label: '¿Aplicar Descuento?',
+                    value: _hasDiscount ? 'Sí, aplicar descuento' : 'No',
+                    items: const ['No', 'Sí, aplicar descuento'],
+                    onChanged: (value) {
+                      setState(() {
+                        _hasDiscount = value == 'Sí, aplicar descuento';
+                      });
+                    },
+                  ),
+
+                  if (_hasDiscount) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomTextField(
+                            controller: _realPriceController,
+                            label: 'Precio Lista (Original)',
+                            keyboardType: TextInputType.number,
+                            prefixIcon: Icons.money_off,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _discountPercentageController,
+                      label: 'Porcentaje Descuento (%)',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.percent,
+                    ),
+                  ],
+                ],
+              ),
             ),
-            if (_hasDiscount) ...[
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _realPriceController,
-                label: 'Monto Real (sin descuento)',
-                keyboardType: TextInputType.number,
-                isRequired: false,
-              ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                controller: _discountPercentageController,
-                label: 'Porcentaje Descuento Aplicado (%)',
-                keyboardType: TextInputType.number,
-                isRequired: false,
-              ),
-            ],
-            const SizedBox(height: 16),
-            // --- FIN CAMBIO UI ---
+            const SizedBox(height: 24),
+            // ---------------------------------------------
 
             CustomTextField(
               controller: _priceController,
-              // --- CAMBIO: Etiqueta de Precio Dinámica ---
-              label: _hasDiscount ? 'Precio Final (con Descuento)' : 'Precio',
+              label: _hasDiscount
+                  ? 'Precio Final (Con Descuento)'
+                  : 'Precio de Venta',
               keyboardType: TextInputType.number,
               isRequired: true,
+              prefixIcon: Icons.attach_money,
             ),
             const SizedBox(height: 16),
             CustomDropdown(
@@ -491,199 +534,219 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 });
               },
             ),
+
             if (_paymentMethod == 'Financiado') ...[
+              const SizedBox(height: 32),
+              _buildSectionTitle('Financiamiento'),
               const SizedBox(height: 16),
               CustomDropdown(
-                label: 'Tipo de Financiamiento',
+                label: 'Tipo',
                 value: _financingType,
                 items: const ['Propia', 'Bancaria'],
-                onChanged: (value) {
-                  setState(() {
-                    _financingType = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _financingType = value),
               ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _deliveryController,
-                label: 'Entrega (Efectivo)', // Etiqueta actualizada
+                label: 'Entrega Efectivo',
                 keyboardType: TextInputType.number,
-                isRequired: false,
               ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _deliveryVehicleController,
-                label: 'Entrega Vehículo (Parte de Pago)',
+                label: 'Entrega de Usado',
                 keyboardType: TextInputType.number,
-                isRequired: false,
               ),
               const SizedBox(height: 16),
-              CustomTextField(
-                controller: _numberOfInstallmentsController,
-                label: 'Cantidad de Cuotas',
-                keyboardType: TextInputType.number,
-                isRequired: true,
-              ),
-              const SizedBox(height: 16),
-              CustomDropdown(
-                label: 'Frecuencia de Cuotas',
-                value: _paymentFrequency,
-                items: const ['Mensual', 'Trimestral', 'Semestral'],
-                onChanged: (value) {
-                  setState(() {
-                    _paymentFrequency = value;
-                    _hasReinforcements = false;
-                    _reinforcementFrequency = null;
-                    _reinforcementMonth = null;
-                  });
-                },
-              ),
-              if (_paymentFrequency != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Datos de Refuerzos',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                CustomDwBudget<bool>(
-                  label: 'Refuerzos',
-                  value: _hasReinforcements,
-                  items: const [
-                    {'value': false, 'label': 'No'},
-                    {'value': true, 'label': 'Sí'},
-                  ],
-                  itemToString: (item) => item['label'] as String,
-                  onChanged: (item) {
-                    setState(() {
-                      _hasReinforcements =
-                          item != null ? item['value'] as bool : false;
-                      if (!_hasReinforcements!) {
-                        _reinforcementFrequency = null;
-                        _reinforcementMonth = null;
-                      }
-                    });
-                  },
-                ),
-                if (_hasReinforcements == true) ...[
-                  const SizedBox(height: 16),
-                  CustomDropdown(
-                    label: 'Frecuencia de Refuerzos',
-                    value: _reinforcementFrequency,
-                    items: const ['Trimestral', 'Semestral', 'Anual'],
-                    onChanged: (value) {
-                      setState(() {
-                        _reinforcementFrequency = value;
-                        _reinforcementMonth = null;
-                      });
-                    },
-                  ),
-                  if (_reinforcementFrequency == 'Anual' ||
-                      _reinforcementFrequency == 'Semestral') ...[
-                    const SizedBox(height: 16),
-                    CustomDropdown(
-                      label: 'Mes de Inicio de Refuerzos',
-                      value: _reinforcementMonth,
-                      items: months,
-                      onChanged: (value) {
-                        setState(() {
-                          _reinforcementMonth = value;
-                        });
-                      },
-                    ),
-                  ],
-                  if (_reinforcementFrequency == 'Anual') ...[
-                    const SizedBox(height: 16),
-                    CustomTextField(
-                      controller: _reinforcementYearController,
-                      label: 'Año de Inicio de Refuerzos',
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _numberOfInstallmentsController,
+                      label: 'Cant. Cuotas',
                       keyboardType: TextInputType.number,
                       isRequired: true,
                     ),
-                  ],
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _numberOfReinforcementsController,
-                    label: 'Cantidad de Refuerzos',
-                    keyboardType: TextInputType.number,
-                    isRequired: true,
                   ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    controller: _reinforcementAmountController,
-                    label: 'Monto de Refuerzos',
-                    keyboardType: TextInputType.number,
-                    isRequired: true,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: CustomDropdown(
+                      label: 'Frecuencia',
+                      value: _paymentFrequency,
+                      items: const ['Mensual', 'Trimestral', 'Semestral'],
+                      onChanged: (value) {
+                        setState(() {
+                          _paymentFrequency = value;
+                          _hasReinforcements = false;
+                          _reinforcementFrequency = null;
+                          _reinforcementMonth = null;
+                        });
+                      },
+                    ),
                   ),
                 ],
+              ),
+              if (_paymentFrequency != null) ...[
+                const SizedBox(height: 24),
+                // Sección Refuerzos
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.1)),
+                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(context).colorScheme.surface,
+                  ),
+                  child: Column(
+                    children: [
+                      CustomDropdown(
+                        label: '¿Incluir Refuerzos?',
+                        value: (_hasReinforcements ?? false) ? 'Sí' : 'No',
+                        items: const ['No', 'Sí'],
+                        onChanged: (value) {
+                          setState(() {
+                            _hasReinforcements = value == 'Sí';
+                            if (!_hasReinforcements!) {
+                              _reinforcementFrequency = null;
+                              _reinforcementMonth = null;
+                            }
+                          });
+                        },
+                      ),
+                      if (_hasReinforcements == true) ...[
+                        const SizedBox(height: 16),
+                        CustomDropdown(
+                          label: 'Frecuencia Refuerzo',
+                          value: _reinforcementFrequency,
+                          items: const ['Trimestral', 'Semestral', 'Anual'],
+                          onChanged: (value) {
+                            setState(() {
+                              _reinforcementFrequency = value;
+                              _reinforcementMonth = null;
+                            });
+                          },
+                        ),
+                        if (_reinforcementFrequency == 'Anual' ||
+                            _reinforcementFrequency == 'Semestral') ...[
+                          const SizedBox(height: 16),
+                          CustomDropdown(
+                            label: 'Mes de Inicio',
+                            value: _reinforcementMonth,
+                            items: months,
+                            onChanged: (value) =>
+                                setState(() => _reinforcementMonth = value),
+                          ),
+                        ],
+                        if (_reinforcementFrequency == 'Anual') ...[
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _reinforcementYearController,
+                            label: 'Año de Inicio',
+                            keyboardType: TextInputType.number,
+                            isRequired: true,
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _numberOfReinforcementsController,
+                                label: 'Cant. Refuerzos',
+                                keyboardType: TextInputType.number,
+                                isRequired: true,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _reinforcementAmountController,
+                                label: 'Monto',
+                                keyboardType: TextInputType.number,
+                                isRequired: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ],
+
+            const SizedBox(height: 40),
+            _buildSectionTitle('Condiciones & Beneficios'),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _commercialConditionsController,
               label: 'Condiciones Comerciales',
-              isRequired: false,
+              maxLines: 2,
             ),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _validityOfferController,
-              label: 'Validez de la Oferta',
-              isRequired: false,
+              label: 'Validez de Oferta',
             ),
             const SizedBox(height: 16),
             CustomTagsInputField(
               controller: _benefitsController,
-              label: 'Beneficios',
+              label: 'Beneficios Incluidos',
               options: benefitOptions,
-              isRequired: false,
             ),
+
             const SizedBox(height: 32),
+
+            // --- MENSAJE DE ERROR ---
             if (budgetProvider.error != null)
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color:
+                          Theme.of(context).colorScheme.error.withOpacity(0.3)),
                 ),
-                child: Text(
-                  budgetProvider.error!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline,
+                        color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text(budgetProvider.error!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error))),
+                  ],
                 ),
               ),
-            const SizedBox(height: 16),
+
+            // --- BOTÓN FINAL ---
             CustomButton(
-              text: 'Guardar y Generar Presupuesto',
+              text: 'Generar Presupuesto PDF',
               onPressed: () async {
                 if (_isLoading) return;
 
-                // --- Start Client-side Validations ---
+                // --- VALIDACIONES RÁPIDAS ---
                 if (_hasReinforcements == null && _paymentFrequency != null) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                            Text('Por favor, seleccione si incluye refuerzos')),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Seleccione si incluye refuerzos')));
                   return;
                 }
-
                 if (_isNewClient && _clientType == null) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Por favor, seleccione el tipo de cliente (Persona Física/Jurídica)')),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Seleccione el tipo de cliente')));
                   return;
                 }
 
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) return;
 
+                // --- VALIDACIÓN DE REFUERZOS ---
                 if (_hasReinforcements == true &&
                     _numberOfInstallmentsController.text.isNotEmpty &&
                     _paymentFrequency != null) {
@@ -692,49 +755,38 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         int.tryParse(_numberOfInstallmentsController.text) ?? 0,
                     paymentFrequency: _paymentFrequency!,
                     reinforcementFrequency: _reinforcementFrequency,
-                    numberOfReinforcements: _numberOfReinforcementsController
-                            .text.isNotEmpty
-                        ? int.tryParse(_numberOfReinforcementsController.text)
-                        : null,
+                    numberOfReinforcements:
+                        int.tryParse(_numberOfReinforcementsController.text),
                   );
                   if (reinforcementError != null) {
-                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(reinforcementError)),
-                    );
+                        SnackBar(content: Text(reinforcementError)));
                     return;
                   }
                   if ((_reinforcementFrequency == 'Anual' ||
                           _reinforcementFrequency == 'Semestral') &&
                       _reinforcementMonth == null) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Por favor, seleccione el mes de inicio de refuerzos')),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content:
+                            Text('Seleccione el mes de inicio de refuerzos')));
                     return;
                   }
                 }
 
+                // --- PARSEO DE PRECIOS ---
                 final priceText = _priceController.text.trim();
                 double? price;
                 if (priceText.isNotEmpty) {
                   price = double.tryParse(priceText.replaceAll(',', '.'));
                   if (price == null) {
-                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Por favor, ingrese un precio válido')),
-                    );
+                        const SnackBar(content: Text('Precio inválido')));
                     return;
                   }
                 } else {
                   price = widget.product.price;
                 }
-                // --- End Client-side Validations ---
 
-                // --- CAMBIO: Lectura de Descuento ---
                 final realPrice = _realPriceController.text.isNotEmpty
                     ? double.tryParse(
                         _realPriceController.text.replaceAll(',', '.'))
@@ -745,35 +797,20 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         _discountPercentageController.text.replaceAll(',', '.'))
                     : null;
 
-                setState(() {
-                  _isLoading = true;
-                });
+                // --- INICIO PROCESO ---
+                setState(() => _isLoading = true);
+
                 if (!context.mounted) return;
-                // Show loading dialog AFTER initial validations
                 showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder: (BuildContext context) {
-                    return const Dialog(
-                      child: Padding(
-                        padding: EdgeInsets.all(20.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(width: 20),
-                            Text("Generando presupuesto..."),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
                 );
 
                 try {
+                  // 1. ACTUALIZAR CLIENTE
                   if (_isNewClient) {
-                    debugPrint(
-                        '[BudgetFormScreen] Actualizando cliente nuevo: razonSocial=${_razonSocialController.text.trim()}, ruc=${_rucController.text.trim()}');
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -781,12 +818,10 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       telefono: _telefonoController.text.trim(),
                       ciudad: _ciudad,
                       departamento: _departamento,
-                      clientType: _clientType, // Pasar tipo de cliente
+                      clientType: _clientType,
                       selectedClientId: null,
                     );
                   } else if (_selectedClient != null) {
-                    debugPrint(
-                        '[BudgetFormScreen] Actualizando cliente existente: id=${_selectedClient!.id}, razonSocial=${_razonSocialController.text.trim()}');
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -794,13 +829,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       telefono: _telefonoController.text.trim(),
                       ciudad: _ciudad,
                       departamento: _departamento,
-                      clientType: _selectedClient!
-                          .clientType, // Mantener tipo de cliente existente
+                      clientType: _selectedClient!.clientType,
                       selectedClientId: _selectedClient!.id,
                     );
                   } else {
-                    debugPrint(
-                        '[BudgetFormScreen] Actualizando cliente sin selección: razonSocial=${_razonSocialController.text.trim()}');
+                    // Fallback para actualización genérica
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
@@ -808,146 +841,105 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       telefono: _telefonoController.text.trim(),
                       ciudad: _ciudad,
                       departamento: _departamento,
-                      clientType:
-                          _clientType, // Pasar tipo de cliente si está configurado, o null
+                      clientType: _clientType,
                       selectedClientId: null,
                     );
                   }
 
-                  if (budgetProvider.error != null) {
+                  if (budgetProvider.error != null)
                     throw Exception(budgetProvider.error);
-                  }
 
-                  final delivery = _deliveryController.text.isNotEmpty
-                      ? double.parse(_deliveryController.text)
-                      : 0.0;
-
-                  final deliveryVehicle =
-                      _deliveryVehicleController.text.isNotEmpty
-                          ? double.parse(_deliveryVehicleController.text)
-                          : 0.0;
-
-                  final numberOfInstallments =
-                      _numberOfInstallmentsController.text.isNotEmpty
-                          ? int.parse(_numberOfInstallmentsController.text)
-                          : null;
-
+                  // 2. ACTUALIZAR DATOS PAGO
                   await budgetProvider.updatePaymentDetails(
                     currency: _currency ?? widget.product.currency,
                     price: price,
                     paymentMethod: _paymentMethod ?? 'Contado',
                     financingType: _financingType,
-                    delivery: delivery,
-                    deliveryVehicle: deliveryVehicle,
+                    delivery: double.tryParse(_deliveryController.text) ?? 0.0,
+                    deliveryVehicle:
+                        double.tryParse(_deliveryVehicleController.text) ?? 0.0,
                     paymentFrequency: _paymentFrequency,
-                    numberOfInstallments: numberOfInstallments,
+                    numberOfInstallments:
+                        int.tryParse(_numberOfInstallmentsController.text),
                     hasReinforcements: _hasReinforcements,
                     reinforcementFrequency: _reinforcementFrequency,
                     numberOfReinforcements:
-                        _numberOfReinforcementsController.text.isNotEmpty
-                            ? int.parse(_numberOfReinforcementsController.text)
-                            : null,
+                        int.tryParse(_numberOfReinforcementsController.text),
                     reinforcementAmount:
-                        _reinforcementAmountController.text.isNotEmpty
-                            ? double.parse(_reinforcementAmountController.text)
-                            : null,
+                        double.tryParse(_reinforcementAmountController.text),
                     reinforcementMonth: _reinforcementMonth,
                     reinforcementYear:
-                        _reinforcementYearController.text.isNotEmpty
-                            ? int.tryParse(_reinforcementYearController.text)
-                            : null,
-                    validityOffer: _validityOfferController.text.trim(),
-                    commercialConditions:
-                        _commercialConditionsController.text.trim(),
-                    benefits: _benefitsController.text.trim(),
-                    // --- CAMBIO: Pasar Descuento ---
+                        int.tryParse(_reinforcementYearController.text),
+                    validityOffer: _validityOfferController.text,
+                    commercialConditions: _commercialConditionsController.text,
+                    benefits: _benefitsController.text,
                     hasDiscount: _hasDiscount,
                     realPrice: realPrice,
                     discountPercentage: discountPercentage,
                   );
 
-                  if (budgetProvider.error != null) {
+                  if (budgetProvider.error != null)
                     throw Exception(budgetProvider.error);
-                  }
 
-                  debugPrint(
-                      '[BudgetFormScreen] PASO 1: updatePaymentDetails TERMINADO.');
-
-                  debugPrint(
-                      '[BudgetFormScreen] PASO 2: Llamando a BudgetProvider.createBudget (Guardando en Firebase)...');
+                  // 3. GUARDAR EN FIREBASE
                   await budgetProvider.createBudget();
-                  if (budgetProvider.error != null) {
+                  if (budgetProvider.error != null)
                     throw Exception(budgetProvider.error);
-                  }
 
-                  debugPrint(
-                      '[BudgetFormScreen] PASO 3: createBudget TERMINADO.');
-
+                  // 4. GENERAR PDF
                   if (!context.mounted) return;
-
-                  debugPrint(
-                      '[BudgetFormScreen] PASO 4: Llamando a generateBudgetPdf (Descargando imágenes)...');
-
                   final pdfBytes =
                       await budgetProvider.generateBudgetPdf(context);
 
-                  if (budgetProvider.error != null) {
-                    throw Exception(budgetProvider.error);
-                  }
-
-                  debugPrint(
-                      '[BudgetFormScreen] PASO 5: generateBudgetPdf TERMINADO.');
-
+                  // 5. NAVEGAR A PREVIEW
                   if (context.mounted) {
-                    Navigator.of(context).pop(); // Dismiss loading dialog
-                  }
+                    Navigator.pop(context); // Cerrar loading
+                    final clientName = _razonSocialController.text.isNotEmpty
+                        ? _razonSocialController.text
+                        : "cliente";
+                    final fileName =
+                        'presupuesto_${clientName}_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-                  final client =
-                      await budgetProvider.getClient(budgetProvider.clientId!);
-                  final fileName =
-                      'presupuesto_${client?.razonSocial ?? "cliente"}_${DateTime.now().toIso8601String()}.pdf';
-
-                  if (!context.mounted) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PdfPreviewScreen(
-                        pdfBytes: pdfBytes,
-                        fileName: fileName,
-                        onShare: () {
-                          Printing.sharePdf(
-                            bytes: pdfBytes,
-                            filename: fileName,
-                          );
-                        },
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PdfPreviewScreen(
+                          pdfBytes: pdfBytes,
+                          fileName: fileName,
+                          onShare: () => Printing.sharePdf(
+                              bytes: pdfBytes, filename: fileName),
+                        ),
                       ),
-                    ),
-                  ).then((_) {
-                    Navigator.pop(context);
-                  });
+                    ).then((_) => Navigator.pop(
+                        context)); // Volver al inicio al cerrar preview
+                  }
                 } catch (e) {
-                  debugPrint('Unexpected error during budget generation: $e');
                   if (context.mounted) {
-                    Navigator.of(context)
-                        .pop(); // Dismiss loading dialog on error
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              'Ocurrió un error al generar el presupuesto: ${e.toString().replaceFirst('Exception: ', '')}')),
-                    );
+                    Navigator.pop(context); // Cerrar loading
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(
+                            'Error: ${e.toString().replaceAll("Exception:", "")}')));
                   }
                 } finally {
-                  if (mounted) {
-                    setState(() {
-                      _isLoading = false;
-                    });
-                  }
+                  if (mounted) setState(() => _isLoading = false);
                 }
               },
+              isLoading: _isLoading,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // Helper para títulos de sección
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
     );
   }
 }

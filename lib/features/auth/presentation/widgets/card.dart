@@ -14,57 +14,78 @@ class CustomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        // --- INICIO DE CAMBIOS ---
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        // No hay ancho fijo, se adaptará al padre (la columna en HomeScreen)
-        // --- FIN DE CAMBIOS ---
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.primary,
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        // --- INICIO DE CAMBIOS ---
-        // Se reemplaza Column por Row para un estilo de "list tile"
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 32, // Icono más prominente
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Text(
-                text,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 18, // Texto más grande
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white, // Texto principal en blanco
-                    ),
+    // Detectar tema para colores dinámicos
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final iconBgColor = Theme.of(context).colorScheme.primary.withOpacity(0.1);
+    final iconColor = Theme.of(context).colorScheme.primary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(
+            24), // Bordes muy redondeados (Tendencia 2025)
+        child: Ink(
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(24),
+            // Sombra ultra sutil, casi invisible
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
               ),
+            ],
+            // Borde muy fino solo para separar del fondo si es necesario
+            border: Border.all(
+              color:
+                  isDark ? Colors.white.withOpacity(0.1) : Colors.transparent,
             ),
-            // Flecha (chevron) a la derecha para indicar navegación
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-              size: 16,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Icono con fondo circular suave
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 30,
+                    color: iconColor,
+                  ),
+                ),
+                const Spacer(), // Empuja el texto hacia abajo
+                // Texto y flecha
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      text,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: isDark ? Colors.grey[600] : Colors.grey[400],
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        // --- FIN DE CAMBIOS ---
       ),
     );
   }
