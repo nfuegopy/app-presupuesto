@@ -12,6 +12,7 @@ import '../../data/models/client_model.dart';
 import '../utils/pdf_generator.dart';
 import '../utils/amortization_calculator.dart';
 import 'dart:typed_data';
+import 'dart:math';
 
 class BudgetProvider with ChangeNotifier {
   Client? _client;
@@ -40,6 +41,11 @@ class BudgetProvider with ChangeNotifier {
   List<Map<String, dynamic>>? _amortizationSchedule;
   List<ClientModel> _clients = [];
 
+  // --- CAMBIO: Campos de Descuento ---
+  bool _hasDiscount = false;
+  double? _realPrice;
+  double? _discountPercentage;
+
   Client? get client => _client;
   String? get clientId => _clientId;
   Product? get product => _product;
@@ -63,6 +69,11 @@ class BudgetProvider with ChangeNotifier {
   double? get deliveryVehicle => _deliveryVehicle;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
+
+  // --- CAMBIO: Getters de Descuento ---
+  bool get hasDiscount => _hasDiscount;
+  double? get realPrice => _realPrice;
+  double? get discountPercentage => _discountPercentage;
 
   final CreateBudget _createBudget;
   final PdfGenerator _pdfGenerator;
@@ -154,6 +165,10 @@ class BudgetProvider with ChangeNotifier {
     String? commercialConditions,
     String? benefits,
     double? deliveryVehicle,
+    // --- CAMBIO: Parámetros de Descuento ---
+    bool? hasDiscount,
+    double? realPrice,
+    double? discountPercentage,
   }) async {
     _currency = currency;
     _price = price;
@@ -174,6 +189,11 @@ class BudgetProvider with ChangeNotifier {
     _deliveryVehicle = deliveryVehicle;
     _error = null;
 
+    // --- CAMBIO: Asignación de Descuento ---
+    _hasDiscount = hasDiscount ?? false;
+    _realPrice = realPrice;
+    _discountPercentage = discountPercentage;
+
     // --- SEGURO DE VIDA DESACTIVADO ---
     _lifeInsuranceAmount =
         null; // Se establece a null para omitirlo del cálculo
@@ -182,61 +202,67 @@ class BudgetProvider with ChangeNotifier {
     if (paymentMethod == 'Financiado' &&
         numberOfInstallments != null &&
         delivery != null) {
-      // --- INICIO DE LA MODIFICACIÓN (Lógica Tasa Plana) ---
+      // --- INICIO DE LA MODIFICACIÓN (Lógica Interés Compuesto Escalonado) ---
 
-      // 1. Definir la tasa anual (1.072 -> 7.2%)
-      const double annualInterestRate = 0.072; // (1.072 - 1.0)
+      // 1. Calcular Años de financiación
+      int installmentsPerYear = 12;
+      if (paymentFrequency == 'Trimestral') installmentsPerYear = 4;
+      if (paymentFrequency == 'Semestral') installmentsPerYear = 2;
+      double years = numberOfInstallments / installmentsPerYear;
 
-      // 2. Calcular capital a financiar
+      // 2. Definir la tasa (1.072)
+      const double interestMultiplier = 1.072; // (1 + 0.072)
+
+      // 3. Calcular Años CON Interés (El primer año es gratis)
+      final double yearsWithInterest = (years > 1) ? (years - 1) : 0.0;
+
+      // 4. Calcular capital a financiar
       double effectivePrice = price;
       double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
       double capitalToFinance = effectivePrice - totalDelivery;
 
-      // 3. Calcular Años de financiación (basado en cuotas mensuales)
-      // Se asume Mensual si no se especifica.
-      int installmentsPerYear = 12;
-      if (paymentFrequency == 'Trimestral') installmentsPerYear = 4;
-      if (paymentFrequency == 'Semestral') installmentsPerYear = 2;
+      // 5. Calcular el Monto Total Financiado (Tasa Compuesta)
+      double totalFinanciado =
+          capitalToFinance * pow(interestMultiplier, yearsWithInterest);
 
-      double years = numberOfInstallments / installmentsPerYear;
-
-      // 4. Calcular el interés total (Tasa Plana)
-      // Interés = Capital * Tasa Anual * Años
-      double totalInterest = capitalToFinance * annualInterestRate * years;
-
-      // 5. Calcular Coeficiente Total
-      // (Capital + Interés) / Capital
-      double financingCoefficient =
-          (capitalToFinance + totalInterest) / capitalToFinance;
+      // 6. Calcular Coeficiente Total (CON PROTECCIÓN DIVISIÓN CERO)
+      double financingCoefficient;
+      if (capitalToFinance <= 0) {
+        financingCoefficient = 1.0;
+      } else {
+        financingCoefficient = totalFinanciado / capitalToFinance;
+      }
 
       // --- FIN DE LA MODIFICACIÓN ---
 
+      // Lógica corregida para generar refuerzos alineados a las cuotas
       final reinforcementsMap = hasReinforcements == true &&
               numberOfReinforcements != null &&
               reinforcementAmount != null
-          ? _generateReinforcements(numberOfReinforcements, reinforcementAmount,
-              reinforcementFrequency!)
+          ? _generateReinforcements(
+              numberOfReinforcements,
+              reinforcementAmount,
+              reinforcementFrequency!,
+              paymentFrequency ?? 'Mensual', // Pasamos la frecuencia de pago
+            )
           : null;
 
       debugPrint(
-          '[BudgetProvider] Calculando amortización TASA PLANA (Calculada): '
+          '[BudgetProvider] Calculando amortización INTERÉS COMPUESTO (Calculada): '
           'capital a financiar=${capitalToFinance.toStringAsFixed(2)}, '
           '# de cuotas=$numberOfInstallments, '
-          'Años=${years.toStringAsFixed(1)}, '
-          'Tasa Anual=${annualInterestRate.toStringAsFixed(4)}, '
+          'Años Totales=${years.toStringAsFixed(1)}, '
+          'Años CON Interés=${yearsWithInterest.toStringAsFixed(1)}, '
           'Coeficiente Total CALCULADO=${financingCoefficient.toStringAsFixed(4)}');
 
-      // --- INICIO DE LA MODIFICACIÓN (Llamada a la calculadora) ---
-      // Volvemos a llamar a la calculadora de Tasa Plana
       _amortizationSchedule =
           AmortizationCalculator.calculateFlatRateAmortization(
         capital: capitalToFinance,
         numberOfInstallments: numberOfInstallments,
-        coefficient: financingCoefficient, // Usamos el coeficiente calculado
+        coefficient: financingCoefficient,
         reinforcements: reinforcementsMap,
         paymentFrequency: paymentFrequency ?? 'Mensual',
       );
-      // --- FIN DE LA MODIFICACIÓN ---
     } else {
       _amortizationSchedule = null;
     }
@@ -244,27 +270,66 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Map<int, double> _generateReinforcements(int numberOfReinforcements,
-      double reinforcementAmount, String frequency) {
+  // --- MÉTODO CORREGIDO PARA GENERAR REFUERZOS ---
+  Map<int, double> _generateReinforcements(
+    int numberOfReinforcements,
+    double reinforcementAmount,
+    String reinforcementFrequency,
+    String paymentFrequency,
+  ) {
     Map<int, double> reinforcements = {};
-    int interval;
-    switch (frequency) {
+
+    // 1. Determinar intervalo de meses de la CUOTA (Divisor)
+    int paymentInterval;
+    switch (paymentFrequency) {
       case 'Trimestral':
-        interval = 3;
+        paymentInterval = 3;
         break;
       case 'Semestral':
-        interval = 6;
+        paymentInterval = 6;
         break;
       case 'Anual':
-        interval = 12;
+        paymentInterval = 12;
         break;
       default:
-        interval = 12;
+        paymentInterval = 1; // Mensual
     }
+
+    // 2. Determinar intervalo de meses del REFUERZO (Multiplicador)
+    int reinforcementInterval;
+    switch (reinforcementFrequency) {
+      case 'Trimestral':
+        reinforcementInterval = 3;
+        break;
+      case 'Semestral':
+        reinforcementInterval = 6;
+        break;
+      case 'Anual':
+        reinforcementInterval = 12;
+        break;
+      default:
+        reinforcementInterval = 12;
+    }
+
     for (int i = 1; i <= numberOfReinforcements; i++) {
-      reinforcements[i * interval] = reinforcementAmount;
+      // Mes absoluto donde cae el refuerzo (ej: Refuerzo anual 1 = Mes 12)
+      int monthOfReinforcement = i * reinforcementInterval;
+
+      // Calcular a qué número de CUOTA corresponde ese mes
+      // Ejemplo: Mes 12 / Semestral (6) = Cuota #2
+      if (monthOfReinforcement % paymentInterval == 0) {
+        int installmentIndex = monthOfReinforcement ~/ paymentInterval;
+        reinforcements[installmentIndex] = reinforcementAmount;
+      } else {
+        // Aquí podrías manejar el caso si un refuerzo cae en un mes donde no hay cuota
+        // (Por ahora se omite si no coincide exactamente)
+        debugPrint(
+            '[BudgetProvider] ADVERTENCIA: Refuerzo en mes $monthOfReinforcement no coincide con frecuencia de pago $paymentFrequency');
+      }
     }
-    debugPrint('[BudgetProvider] Refuerzos generados: $reinforcements');
+
+    debugPrint(
+        '[BudgetProvider] Refuerzos generados (Cuota -> Monto): $reinforcements');
     return reinforcements;
   }
 
@@ -363,6 +428,10 @@ class BudgetProvider with ChangeNotifier {
         lifeInsuranceAmount: _lifeInsuranceAmount,
         createdBy: user.uid,
         createdAt: DateTime.now().toIso8601String(),
+        // --- CAMBIO: Campos de Descuento ---
+        hasDiscount: _hasDiscount,
+        realPrice: _realPrice,
+        discountPercentage: _discountPercentage,
       );
 
       await _createBudget(budget);
@@ -429,6 +498,10 @@ class BudgetProvider with ChangeNotifier {
         commercialConditions: _commercialConditions,
         benefits: _benefits,
         lifeInsuranceAmount: _lifeInsuranceAmount,
+        // --- CAMBIO: Campos de Descuento ---
+        hasDiscount: _hasDiscount,
+        realPrice: _realPrice,
+        discountPercentage: _discountPercentage,
       );
       _error = null;
       return pdfBytes;
@@ -486,6 +559,12 @@ class BudgetProvider with ChangeNotifier {
     _amortizationSchedule = null;
     _clients = [];
     _error = null;
+
+    // --- CAMBIO: Limpieza de Descuento ---
+    _hasDiscount = false;
+    _realPrice = null;
+    _discountPercentage = null;
+
     notifyListeners();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // <-- AÑADIDO
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -10,6 +11,10 @@ class AuthRepositoryImpl implements AuthRepository {
   final firebase_auth.FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   Future<SharedPreferences>? _prefs;
+
+  // --- INICIO CAMBIO ---
+  final _storage = const FlutterSecureStorage();
+  // --- FIN CAMBIO ---
 
   AuthRepositoryImpl({
     firebase_auth.FirebaseAuth? auth,
@@ -38,6 +43,10 @@ class AuthRepositoryImpl implements AuthRepository {
           final userModel = UserModel.fromMap(doc.data()!, user.uid);
           if (userModel.role == 'seller') {
             await storeUserEmail(email);
+            // --- INICIO CAMBIO: Guardar credenciales seguras ---
+            await _storage.write(key: 'user_email', value: email);
+            await _storage.write(key: 'user_password', value: password);
+            // --- FIN CAMBIO ---
             return User(
               uid: userModel.uid,
               email: userModel.email,
@@ -63,6 +72,10 @@ class AuthRepositoryImpl implements AuthRepository {
     await _auth.signOut();
     final prefs = await _prefs;
     await prefs?.remove('user_email');
+    // --- INICIO CAMBIO: Borrar credenciales seguras ---
+    await _storage.delete(key: 'user_email');
+    await _storage.delete(key: 'user_password');
+    // --- FIN CAMBIO ---
   }
 
   @override
@@ -125,6 +138,19 @@ class AuthRepositoryImpl implements AuthRepository {
       throw Exception(_handleAuthError(e));
     }
   }
+
+  // --- INICIO CAMBIO: Nuevo método ---
+  @override
+  Future<Map<String, String>?> getStoredCredentials() async {
+    final email = await _storage.read(key: 'user_email');
+    final password = await _storage.read(key: 'user_password');
+
+    if (email != null && password != null) {
+      return {'email': email, 'password': password};
+    }
+    return null;
+  }
+  // --- FIN CAMBIO ---
 
   String _handleAuthError(dynamic error) {
     if (error is firebase_auth.FirebaseAuthException) {

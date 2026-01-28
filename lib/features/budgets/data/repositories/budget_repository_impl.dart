@@ -1,3 +1,4 @@
+// budgets/data/repositories/budget_repository_impl.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/budget_model.dart';
 import '../../../products/data/models/product_model.dart';
@@ -44,6 +45,11 @@ class BudgetRepositoryImpl implements BudgetRepository {
       createdBy: budget.createdBy,
       createdAt: budget.createdAt,
       deliveryVehicle: budget.deliveryVehicle,
+
+      // --- CAMBIO: Campos de Descuento ---
+      hasDiscount: budget.hasDiscount,
+      realPrice: budget.realPrice,
+      discountPercentage: budget.discountPercentage,
     );
 
     await _firestore

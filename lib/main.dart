@@ -79,19 +79,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'App-Presupuesto',
       theme: ThemeData(
+        // --- INICIO DEL CAMBIO ---
         // Usar Material 3 (habilitado por defecto en Flutter 3.16+)
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00E5FF), // Azul neón como color base
+          seedColor: Colors.blue, // Azul profesional como color base
           brightness: Brightness.dark, // Tema oscuro
-          surface: const Color(0xFF212121), // Fondo gris oscuro
-          primary:
-              const Color(0xFF00E5FF), // Azul neón para elementos principales
-          onPrimary: const Color(0xFF121212), // Texto oscuro sobre azul neón
-          // surface: const Color(0xFF2A2A2A), // Fondo de cards y superficies
-          onSurface: Colors.white, // Texto blanco sobre superficies
-          error: Colors.redAccent, // Color de error
-          onError: Colors.white, // Texto sobre error
+          // Ya no forzamos 'surface' o 'primary'.
+          // Dejamos que Material 3 genere la paleta oscura
+          // optimizada a partir del 'seedColor'.
+          // Esto crea un look más cohesivo y moderno.
         ),
+        // --- FIN DEL CAMBIO ---
         textTheme: const TextTheme(
           headlineMedium: TextStyle(
             fontFamily: 'Poppins',
