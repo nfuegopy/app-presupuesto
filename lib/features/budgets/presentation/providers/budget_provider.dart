@@ -213,8 +213,8 @@ class BudgetProvider with ChangeNotifier {
       // 2. Definir la tasa (1.072)
       const double interestMultiplier = 1.072; // (1 + 0.072)
 
-      // 3. Calcular Años CON Interés (El primer año es gratis)
-      final double yearsWithInterest = (years > 1) ? (years - 1) : 0.0;
+      // 3. Calcular Años CON Interés (aplica desde la cuota 1, sin año gratis)
+      final double yearsWithInterest = years;
 
       // 4. Calcular capital a financiar
       double effectivePrice = price;
