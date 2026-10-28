@@ -2,19 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:printing/printing.dart';
-import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:intl/intl.dart';
 
 import '../providers/budget_provider.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text_field.dart';
 import '../../../auth/presentation/widgets/custom_dropdown.dart';
 import '../../../products/domain/entities/product.dart';
-import '../widgets/custom_tags_input_field.dart';
+import '../../../products/presentation/providers/product_provider.dart';
 import '../widgets/client_search_select.dart';
 import '../../data/models/client_model.dart';
-import '../../data/models/paraguay_location.dart';
-import '../utils/reinforcement_validator.dart';
+import '../utils/financing_schedule.dart';
 import 'pdf_preview_screen.dart';
 
 class BudgetFormScreen extends StatefulWidget {
@@ -27,12 +25,12 @@ class BudgetFormScreen extends StatefulWidget {
 }
 
 class _BudgetFormScreenState extends State<BudgetFormScreen> {
+  // Los presupuestos nuevos se cotizan siempre en dólares (AMIN-07)
+  static const String _currency = 'USD';
+
   // --- CONTROLADORES ---
   final _razonSocialController = TextEditingController();
   final _rucController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _telefonoController = TextEditingController();
-  final _priceController = TextEditingController();
   final _deliveryController = TextEditingController();
   final _deliveryVehicleController = TextEditingController();
   final _numberOfInstallmentsController = TextEditingController();
@@ -42,65 +40,88 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
       TextEditingController(text: 'Válido 15 días');
   final _commercialConditionsController =
       TextEditingController(text: 'Plazo de Entrega 10 días');
-  final _benefitsController = TextEditingController();
-  final _reinforcementYearController =
-      TextEditingController(text: (DateTime.now().year + 1).toString());
 
   // Descuento
   bool _hasDiscount = false;
-  final _realPriceController = TextEditingController();
-  final _discountPercentageController = TextEditingController();
+  // Se elige de 1 al tope definido por el administrador (AMIN-09)
+  double? _discountPercentage;
+
+  // Opciones 1%, 2%, ... hasta el tope; si el tope tiene decimales (4,5) se
+  // agrega como última opción para poder usarlo completo.
+  static List<double> _discountOptions(double? max) {
+    if (max == null || max <= 0) return [];
+    final options = [for (var i = 1; i <= max.floor(); i++) i.toDouble()];
+    if (max > max.floor()) options.add(max);
+    return options;
+  }
+
+  static String _percentLabel(double value) =>
+      '${_plainNumber(value).replaceAll('.', ',')}%';
+
+  // 97800.0 -> "97800", 4.5 -> "4.5"
+  static String _plainNumber(double value) =>
+      value == value.roundToDouble() ? value.toInt().toString() : '$value';
+
+  // Beneficios elegidos (productos tipo "beneficio" del admin, AMIN-11), por id
+  final Map<String, Product> _selectedBenefits = {};
+
+  double get _benefitsTotal =>
+      _selectedBenefits.values.fold(0.0, (sum, b) => sum + b.price);
+
+  // Precio final contado, calculado y no editable por el vendedor (AMIN-10):
+  // (precio de lista del producto + beneficios incluidos) menos el descuento
+  // elegido, que se aplica sobre ese total; a 2 decimales.
+  double get _subtotal => widget.product.price + _benefitsTotal;
+
+  double get _discountAmount => _subtotal - _finalPrice;
+
+  double get _finalPrice {
+    final discount = _hasDiscount ? (_discountPercentage ?? 0) : 0;
+    return (_subtotal * (1 - discount / 100) * 100).roundToDouble() / 100;
+  }
+
+  // --- Plan de cuotas ---
+  int? get _numberOfInstallments =>
+      int.tryParse(_numberOfInstallmentsController.text.trim());
+
+  double get _totalDelivery =>
+      (double.tryParse(_deliveryController.text.trim()) ?? 0) +
+      (double.tryParse(_deliveryVehicleController.text.trim()) ?? 0);
+
+  // "12 cuotas mensuales: de Dic 2026 a Nov 2027"
+  String? get _installmentsPreview {
+    final n = _numberOfInstallments;
+    if (n == null || n < 1 || _paymentFrequency == null) return null;
+    final months =
+        FinancingSchedule.dueMonths(DateTime.now(), n, _paymentFrequency!);
+    final kind = '${_paymentFrequency!.toLowerCase()}${n == 1 ? '' : 'es'}';
+    return '$n ${n == 1 ? 'cuota' : 'cuotas'} $kind: de '
+        '${FinancingSchedule.monthLabel(months.first)} a '
+        '${FinancingSchedule.monthLabel(months.last)}';
+  }
+
+  void _resetReinforcements() {
+    _hasReinforcements = false;
+    _reinforcementFrequency = null;
+    _firstReinforcementInstallment = null;
+  }
 
   // --- ESTADO ---
   // ignore: unused_field
   String _searchQuery = '';
   bool _isNewClient = false;
   ClientModel? _selectedClient;
-  String? _ciudad;
-  String? _departamento;
-  String? _currency;
   String? _paymentMethod;
-  String? _financingType;
   String? _paymentFrequency;
   bool? _hasReinforcements;
   String? _reinforcementFrequency;
-  String? _reinforcementMonth;
+  // Cuota en la que cae el primer refuerzo; los siguientes, cada período
+  int? _firstReinforcementInstallment;
   String? _clientType;
   bool _isLoading = false;
 
-  // Datos Geográficos
-  List<ParaguayLocation> _locations = [];
-  List<String> _departamentos = [];
-  List<String> _ciudades = [];
-
-  final List<String> months = [
-    'Enero',
-    'Febrero',
-    'Marzo',
-    'Abril',
-    'Mayo',
-    'Junio',
-    'Julio',
-    'Agosto',
-    'Septiembre',
-    'Octubre',
-    'Noviembre',
-    'Diciembre',
-  ];
-
-  final List<String> benefitOptions = [
-    'Garantía: 12 meses o 2.000 horas',
-    'Transferencia',
-    'Flete',
-    'Primer Mantenimiento',
-    '500 Horas de Mantenimiento',
-    '1000 Horas de Mantenimiento',
-    'Protecciones Completas de cabina',
-    'Rastrillo',
-    'Tumbador',
-    'Garra Forestal',
-    'Tercera Vía Hidráulica',
-  ];
+  // Un producto con precio cargado en guaraníes no se puede cotizar en USD
+  bool get _productPricedInGs => widget.product.currency.toUpperCase() != 'USD';
 
   @override
   void initState() {
@@ -108,44 +129,28 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
     budgetProvider.updateProduct(widget.product);
     budgetProvider.loadClientsByVendor();
-    _priceController.text = widget.product.price.toString();
-    _currency = widget.product.currency;
+    budgetProvider.loadDiscountConfig();
+    budgetProvider.loadInterestRate();
     _hasReinforcements = false;
-    _loadLocations();
+    // El resumen del plan y las opciones de refuerzo dependen de estos campos
+    for (final c in [
+      _numberOfInstallmentsController,
+      _deliveryController,
+      _deliveryVehicleController,
+      _numberOfReinforcementsController,
+    ]) {
+      c.addListener(_onPlanFieldChanged);
+    }
   }
 
-  Future<void> _loadLocations() async {
-    final String response = await rootBundle.loadString('assets/paraguay.json');
-    final List<dynamic> data = json.decode(response);
-    setState(() {
-      _locations = data.map((json) => ParaguayLocation.fromJson(json)).toList();
-      _departamentos = _locations.map((loc) => loc.departamento).toList();
-    });
-  }
-
-  void _updateCiudades(String? departamento) {
-    setState(() {
-      _departamento = departamento;
-      _ciudad = null;
-      if (departamento != null) {
-        final selectedLocation = _locations.firstWhere(
-          (loc) => loc.departamento == departamento,
-          orElse: () => ParaguayLocation(departamento: '', ciudades: []),
-        );
-        _ciudades = selectedLocation.ciudades;
-      } else {
-        _ciudades = [];
-      }
-    });
+  void _onPlanFieldChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _razonSocialController.dispose();
     _rucController.dispose();
-    _emailController.dispose();
-    _telefonoController.dispose();
-    _priceController.dispose();
     _deliveryController.dispose();
     _deliveryVehicleController.dispose();
     _numberOfInstallmentsController.dispose();
@@ -153,10 +158,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     _reinforcementAmountController.dispose();
     _validityOfferController.dispose();
     _commercialConditionsController.dispose();
-    _benefitsController.dispose();
-    _reinforcementYearController.dispose();
-    _realPriceController.dispose();
-    _discountPercentageController.dispose();
     super.dispose();
   }
 
@@ -194,23 +195,26 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
   @override
   Widget build(BuildContext context) {
     final budgetProvider = Provider.of<BudgetProvider>(context);
+    final maxDiscount = budgetProvider.maxDiscountPercentage;
+    final discountValues = _discountOptions(maxDiscount);
+    final discountEnabled = discountValues.isNotEmpty;
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: Theme.of(context).colorScheme.onBackground),
+              color: Theme.of(context).colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Nuevo Presupuesto',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onBackground,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -287,6 +291,22 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               ),
             ),
 
+            if (_productPricedInGs) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Este producto tiene el precio cargado en guaraníes. Los presupuestos '
+                  'se emiten solo en USD: pide al administrador que actualice su precio.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 32),
             _buildSectionTitle('Datos del Cliente'),
             const SizedBox(height: 16),
@@ -310,11 +330,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                           // Limpiar formulario para nuevo cliente
                           _razonSocialController.clear();
                           _rucController.clear();
-                          _emailController.clear();
-                          _telefonoController.clear();
-                          _ciudad = null;
-                          _departamento = null;
-                          _updateCiudades(null);
                           _clientType = null;
                         }
                       });
@@ -341,20 +356,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       // Autocompletar datos
                       _razonSocialController.text = client.razonSocial;
                       _rucController.text = client.ruc;
-                      _emailController.text = client.email ?? '';
-                      _telefonoController.text = client.telefono ?? '';
-                      _ciudad = client.ciudad;
-                      _departamento = client.departamento;
-                      _updateCiudades(_departamento);
                       _clientType = client.clientType;
 
                       budgetProvider.updateClient(
                         razonSocial: client.razonSocial,
                         ruc: client.ruc,
-                        email: client.email,
-                        telefono: client.telefono,
-                        ciudad: client.ciudad,
-                        departamento: client.departamento,
                         clientType: client.clientType,
                         selectedClientId: client.id,
                       );
@@ -362,11 +368,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       // Limpiar si se deselecciona
                       _razonSocialController.clear();
                       _rucController.clear();
-                      _emailController.clear();
-                      _telefonoController.clear();
-                      _ciudad = null;
-                      _departamento = null;
-                      _updateCiudades(null);
                       _clientType = null;
 
                       budgetProvider.updateClient(
@@ -404,59 +405,20 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               ),
             ],
 
-            const SizedBox(height: 16),
-            CustomTextField(
-              controller: _emailController,
-              label: 'E-mail',
-              keyboardType: TextInputType.emailAddress,
-              prefixIcon: Icons.email_outlined,
-            ),
-            const SizedBox(height: 16),
-            CustomTextField(
-              controller: _telefonoController,
-              label: 'Teléfono',
-              keyboardType: TextInputType.phone,
-              prefixIcon: Icons.phone_outlined,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomDropdown(
-                    label: 'Departamento',
-                    value: _departamento,
-                    items: _departamentos,
-                    onChanged: _updateCiudades,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: CustomDropdown(
-                    label: 'Ciudad',
-                    value: _ciudad,
-                    items: _ciudades,
-                    onChanged: _departamento != null
-                        ? (value) => setState(() => _ciudad = value)
-                        : null,
-                  ),
-                ),
-              ],
-            ),
-
             const SizedBox(height: 40),
-            _buildSectionTitle('Plan Financiero'),
-            const SizedBox(height: 20),
-
-            // --- MONEDA ---
-            CustomDropdown(
-              label: 'Moneda',
-              value: _currency,
-              items: const ['USD', 'GS'],
-              onChanged: (value) => setState(() => _currency = value),
+            _buildSectionTitle('Precio'),
+            const SizedBox(height: 8),
+            Text(
+              'Moneda: $_currency',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
 
-            // --- SECCIÓN DE DESCUENTO (REDITADA PARA CLARIDAD) ---
+            // Orden: beneficios que suman -> descuento sobre el total -> resumen
+            _buildBenefitsSelector(),
+            const SizedBox(height: 24),
+
+            // --- SECCIÓN DE DESCUENTO ---
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -474,50 +436,46 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     label: '¿Aplicar Descuento?',
                     value: _hasDiscount ? 'Sí, aplicar descuento' : 'No',
                     items: const ['No', 'Sí, aplicar descuento'],
-                    onChanged: (value) {
-                      setState(() {
-                        _hasDiscount = value == 'Sí, aplicar descuento';
-                      });
-                    },
+                    onChanged: discountEnabled
+                        ? (value) {
+                            setState(() {
+                              _hasDiscount = value == 'Sí, aplicar descuento';
+                              if (!_hasDiscount) _discountPercentage = null;
+                            });
+                          }
+                        : null,
                   ),
-
-                  if (_hasDiscount) ...[
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: CustomTextField(
-                            controller: _realPriceController,
-                            label: 'Precio Lista (Original)',
-                            keyboardType: TextInputType.number,
-                            prefixIcon: Icons.money_off,
-                          ),
-                        ),
-                      ],
+                  if (!discountEnabled &&
+                      !budgetProvider.isLoadingDiscountConfig) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'El descuento no está habilitado por el administrador.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
+                  ],
+
+                  if (_hasDiscount && discountEnabled) ...[
                     const SizedBox(height: 16),
-                    CustomTextField(
-                      controller: _discountPercentageController,
-                      label: 'Porcentaje Descuento (%)',
-                      keyboardType: TextInputType.number,
-                      prefixIcon: Icons.percent,
+                    CustomDropdown(
+                      label:
+                          'Porcentaje Descuento (máx. ${_percentLabel(maxDiscount!)})',
+                      value: discountValues.contains(_discountPercentage)
+                          ? _percentLabel(_discountPercentage!)
+                          : null,
+                      items: discountValues.map(_percentLabel).toList(),
+                      onChanged: (value) => setState(() {
+                        _discountPercentage = discountValues.firstWhere(
+                            (option) => _percentLabel(option) == value);
+                      }),
                     ),
                   ],
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            // ---------------------------------------------
 
-            CustomTextField(
-              controller: _priceController,
-              label: _hasDiscount
-                  ? 'Precio Final (Con Descuento)'
-                  : 'Precio de Venta',
-              keyboardType: TextInputType.number,
-              isRequired: true,
-              prefixIcon: Icons.attach_money,
-            ),
+            // Desglose calculado y no editable (AMIN-08/10)
+            _buildPriceSummary(),
             const SizedBox(height: 16),
             CustomDropdown(
               label: 'Forma de Pago',
@@ -526,11 +484,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               onChanged: (value) {
                 setState(() {
                   _paymentMethod = value;
-                  if (_paymentMethod != 'Financiado') {
-                    _hasReinforcements = false;
-                    _reinforcementFrequency = null;
-                    _reinforcementMonth = null;
-                  }
+                  if (_paymentMethod != 'Financiado') _resetReinforcements();
                 });
               },
             ),
@@ -538,13 +492,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             if (_paymentMethod == 'Financiado') ...[
               const SizedBox(height: 32),
               _buildSectionTitle('Financiamiento'),
-              const SizedBox(height: 16),
-              CustomDropdown(
-                label: 'Tipo',
-                value: _financingType,
-                items: const ['Propia', 'Bancaria'],
-                onChanged: (value) => setState(() => _financingType = value),
-              ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: _deliveryController,
@@ -573,19 +520,22 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     child: CustomDropdown(
                       label: 'Frecuencia',
                       value: _paymentFrequency,
-                      items: const ['Mensual', 'Trimestral', 'Semestral'],
+                      items: FinancingSchedule.paymentFrequencies,
                       onChanged: (value) {
                         setState(() {
                           _paymentFrequency = value;
-                          _hasReinforcements = false;
-                          _reinforcementFrequency = null;
-                          _reinforcementMonth = null;
+                          _resetReinforcements();
                         });
                       },
                     ),
                   ),
                 ],
               ),
+              if (_installmentsPreview != null) ...[
+                const SizedBox(height: 8),
+                Text(_installmentsPreview!,
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
               if (_paymentFrequency != null) ...[
                 const SizedBox(height: 24),
                 // Sección Refuerzos
@@ -608,46 +558,35 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         items: const ['No', 'Sí'],
                         onChanged: (value) {
                           setState(() {
-                            _hasReinforcements = value == 'Sí';
-                            if (!_hasReinforcements!) {
-                              _reinforcementFrequency = null;
-                              _reinforcementMonth = null;
-                            }
+                            final include = value == 'Sí';
+                            _resetReinforcements();
+                            _hasReinforcements = include;
                           });
                         },
                       ),
                       if (_hasReinforcements == true) ...[
                         const SizedBox(height: 16),
+                        // Solo frecuencias que caen sobre una cuota (con cuotas
+                        // semestrales no se ofrece refuerzo trimestral)
                         CustomDropdown(
                           label: 'Frecuencia Refuerzo',
                           value: _reinforcementFrequency,
-                          items: const ['Trimestral', 'Semestral', 'Anual'],
+                          items: FinancingSchedule.reinforcementFrequenciesFor(
+                              _paymentFrequency!),
                           onChanged: (value) {
                             setState(() {
                               _reinforcementFrequency = value;
-                              _reinforcementMonth = null;
+                              // Por defecto, el primer refuerzo cae al cumplirse
+                              // su primer período (ej. anual -> cuota 12)
+                              _firstReinforcementInstallment =
+                                  FinancingSchedule.reinforcementStep(
+                                      _paymentFrequency!, value!);
                             });
                           },
                         ),
-                        if (_reinforcementFrequency == 'Anual' ||
-                            _reinforcementFrequency == 'Semestral') ...[
+                        if (_reinforcementFrequency != null) ...[
                           const SizedBox(height: 16),
-                          CustomDropdown(
-                            label: 'Mes de Inicio',
-                            value: _reinforcementMonth,
-                            items: months,
-                            onChanged: (value) =>
-                                setState(() => _reinforcementMonth = value),
-                          ),
-                        ],
-                        if (_reinforcementFrequency == 'Anual') ...[
-                          const SizedBox(height: 16),
-                          CustomTextField(
-                            controller: _reinforcementYearController,
-                            label: 'Año de Inicio',
-                            keyboardType: TextInputType.number,
-                            isRequired: true,
-                          ),
+                          _buildFirstReinforcementSelector(),
                         ],
                         const SizedBox(height: 16),
                         Row(
@@ -679,7 +618,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             ],
 
             const SizedBox(height: 40),
-            _buildSectionTitle('Condiciones & Beneficios'),
+            _buildSectionTitle('Condiciones'),
             const SizedBox(height: 16),
             CustomTextField(
               controller: _commercialConditionsController,
@@ -691,14 +630,34 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               controller: _validityOfferController,
               label: 'Validez de Oferta',
             ),
-            const SizedBox(height: 16),
-            CustomTagsInputField(
-              controller: _benefitsController,
-              label: 'Beneficios Incluidos',
-              options: benefitOptions,
-            ),
 
             const SizedBox(height: 32),
+
+            // --- AVISO JUNTO AL BOTÓN: producto en Gs. no se puede generar ---
+            if (_productPricedInGs)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color:
+                          Theme.of(context).colorScheme.error.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.block,
+                        color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text(
+                            'No se puede generar: el precio de este producto está en guaraníes.',
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error))),
+                  ],
+                ),
+              ),
 
             // --- MENSAJE DE ERROR ---
             if (budgetProvider.error != null)
@@ -732,6 +691,13 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 if (_isLoading) return;
 
                 // --- VALIDACIONES RÁPIDAS ---
+                if (_productPricedInGs) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      content: const Text(
+                          'El producto tiene precio en guaraníes; debe actualizarse a USD')));
+                  return;
+                }
                 if (_hasReinforcements == null && _paymentFrequency != null) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Seleccione si incluye refuerzos')));
@@ -743,58 +709,51 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   return;
                 }
 
+                // --- PRECIOS (calculados, no editables) ---
+                final price = _finalPrice;
+                // "Monto Real" del PDF: precio de lista más beneficios incluidos
+                final realPrice = _hasDiscount ? _subtotal : null;
+                final discountPercentage =
+                    _hasDiscount ? _discountPercentage : null;
+                if (_hasDiscount && discountPercentage == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Seleccione el porcentaje de descuento')));
+                  return;
+                }
+
+                // --- VALIDACIÓN DEL PLAN DE CUOTAS Y REFUERZOS ---
+                if (_paymentMethod == 'Financiado') {
+                  final planError = FinancingSchedule.validate(
+                    price: price,
+                    totalDelivery: _totalDelivery,
+                    numberOfInstallments: _numberOfInstallments,
+                    paymentFrequency: _paymentFrequency,
+                    hasReinforcements: _hasReinforcements == true,
+                    reinforcementFrequency: _reinforcementFrequency,
+                    firstInstallment: _firstReinforcementInstallment,
+                    numberOfReinforcements:
+                        int.tryParse(_numberOfReinforcementsController.text),
+                    reinforcementAmount:
+                        double.tryParse(_reinforcementAmountController.text),
+                  );
+                  if (planError != null) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(planError)));
+                    return;
+                  }
+                }
+
                 bool confirmed = await _showConfirmationDialog();
                 if (!confirmed) return;
 
-                // --- VALIDACIÓN DE REFUERZOS ---
-                if (_hasReinforcements == true &&
-                    _numberOfInstallmentsController.text.isNotEmpty &&
-                    _paymentFrequency != null) {
-                  final reinforcementError = validateReinforcements(
-                    numberOfInstallments:
-                        int.tryParse(_numberOfInstallmentsController.text) ?? 0,
-                    paymentFrequency: _paymentFrequency!,
-                    reinforcementFrequency: _reinforcementFrequency,
-                    numberOfReinforcements:
-                        int.tryParse(_numberOfReinforcementsController.text),
-                  );
-                  if (reinforcementError != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(reinforcementError)));
-                    return;
-                  }
-                  if ((_reinforcementFrequency == 'Anual' ||
-                          _reinforcementFrequency == 'Semestral') &&
-                      _reinforcementMonth == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content:
-                            Text('Seleccione el mes de inicio de refuerzos')));
-                    return;
-                  }
-                }
-
-                // --- PARSEO DE PRECIOS ---
-                final priceText = _priceController.text.trim();
-                double? price;
-                if (priceText.isNotEmpty) {
-                  price = double.tryParse(priceText.replaceAll(',', '.'));
-                  if (price == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Precio inválido')));
-                    return;
-                  }
-                } else {
-                  price = widget.product.price;
-                }
-
-                final realPrice = _realPriceController.text.isNotEmpty
-                    ? double.tryParse(
-                        _realPriceController.text.replaceAll(',', '.'))
-                    : null;
-                final discountPercentage = _discountPercentageController
-                        .text.isNotEmpty
-                    ? double.tryParse(
-                        _discountPercentageController.text.replaceAll(',', '.'))
+                // Mes y año del primer refuerzo, para el registro del presupuesto
+                final firstReinforcementMonth = _hasReinforcements == true &&
+                        _firstReinforcementInstallment != null
+                    ? FinancingSchedule.dueMonths(
+                            DateTime.now(),
+                            _firstReinforcementInstallment!,
+                            _paymentFrequency!)
+                        .last
                     : null;
 
                 // --- INICIO PROCESO ---
@@ -814,10 +773,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
-                      email: _emailController.text.trim(),
-                      telefono: _telefonoController.text.trim(),
-                      ciudad: _ciudad,
-                      departamento: _departamento,
                       clientType: _clientType,
                       selectedClientId: null,
                     );
@@ -825,10 +780,6 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
-                      email: _emailController.text.trim(),
-                      telefono: _telefonoController.text.trim(),
-                      ciudad: _ciudad,
-                      departamento: _departamento,
                       clientType: _selectedClient!.clientType,
                       selectedClientId: _selectedClient!.id,
                     );
@@ -837,24 +788,20 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
-                      email: _emailController.text.trim(),
-                      telefono: _telefonoController.text.trim(),
-                      ciudad: _ciudad,
-                      departamento: _departamento,
                       clientType: _clientType,
                       selectedClientId: null,
                     );
                   }
 
-                  if (budgetProvider.error != null)
+                  if (budgetProvider.error != null) {
                     throw Exception(budgetProvider.error);
+                  }
 
                   // 2. ACTUALIZAR DATOS PAGO
                   await budgetProvider.updatePaymentDetails(
-                    currency: _currency ?? widget.product.currency,
+                    currency: _currency,
                     price: price,
                     paymentMethod: _paymentMethod ?? 'Contado',
-                    financingType: _financingType,
                     delivery: double.tryParse(_deliveryController.text) ?? 0.0,
                     deliveryVehicle:
                         double.tryParse(_deliveryVehicleController.text) ?? 0.0,
@@ -867,24 +814,35 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                         int.tryParse(_numberOfReinforcementsController.text),
                     reinforcementAmount:
                         double.tryParse(_reinforcementAmountController.text),
-                    reinforcementMonth: _reinforcementMonth,
-                    reinforcementYear:
-                        int.tryParse(_reinforcementYearController.text),
+                    firstReinforcementInstallment:
+                        _hasReinforcements == true
+                            ? _firstReinforcementInstallment
+                            : null,
+                    reinforcementMonth: firstReinforcementMonth == null
+                        ? null
+                        : FinancingSchedule
+                            .monthNames[firstReinforcementMonth.month - 1],
+                    reinforcementYear: firstReinforcementMonth?.year,
                     validityOffer: _validityOfferController.text,
                     commercialConditions: _commercialConditionsController.text,
-                    benefits: _benefitsController.text,
+                    // En el presupuesto van solo los nombres, sin el precio de cada uno
+                    benefits: _selectedBenefits.values
+                        .map((b) => b.name)
+                        .join(', '),
                     hasDiscount: _hasDiscount,
                     realPrice: realPrice,
                     discountPercentage: discountPercentage,
                   );
 
-                  if (budgetProvider.error != null)
+                  if (budgetProvider.error != null) {
                     throw Exception(budgetProvider.error);
+                  }
 
                   // 3. GUARDAR EN FIREBASE
                   await budgetProvider.createBudget();
-                  if (budgetProvider.error != null)
+                  if (budgetProvider.error != null) {
                     throw Exception(budgetProvider.error);
+                  }
 
                   // 4. GENERAR PDF
                   if (!context.mounted) return;
@@ -932,13 +890,216 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     );
   }
 
-  // Helper para títulos de sección
+  // Beneficios cargados en el admin; cada uno elegido suma su precio al
+  // precio final. Solo se ofrecen los que están en USD (AMIN-07).
+  Widget _buildBenefitsSelector() {
+    final productProvider = Provider.of<ProductProvider>(context);
+    final benefits = productProvider.benefits
+        .where((b) => b.currency.toUpperCase() == _currency)
+        .toList();
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Beneficios Incluidos',
+            style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        if (productProvider.isLoading)
+          const LinearProgressIndicator()
+        else if (benefits.isEmpty)
+          Text('No hay beneficios cargados por el administrador.',
+              style: textTheme.bodySmall)
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: benefits.map((benefit) {
+              final selected = _selectedBenefits.containsKey(benefit.id);
+              return FilterChip(
+                label: Text(
+                    '${benefit.name} · $_currency ${_plainNumber(benefit.price)}'),
+                selected: selected,
+                onSelected: (value) => setState(() {
+                  if (value) {
+                    _selectedBenefits[benefit.id] = benefit;
+                  } else {
+                    _selectedBenefits.remove(benefit.id);
+                  }
+                }),
+              );
+            }).toList(),
+          ),
+        if (_selectedBenefits.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Suman $_currency ${_plainNumber(_benefitsTotal)} al precio final '
+            '(en el PDF se listan sin precio).',
+            style: textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Mismo formato que el PDF: 100.100 (con centavos solo si los hay)
+  String _money(double value) {
+    final hasCents = (value * 100).round() % 100 != 0;
+    final text = NumberFormat.decimalPatternDigits(
+            locale: 'es_PY', decimalDigits: hasCents ? 2 : 0)
+        .format(value);
+    return '$_currency $text';
+  }
+
+  // Desglose del precio: máquina + beneficios = subtotal, - descuento = final.
+  // Todo calculado; el vendedor solo elige beneficios y porcentaje.
+  Widget _buildPriceSummary() {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final benefitsCount = _selectedBenefits.length;
+
+    Widget line(String label, String value,
+        {bool bold = false, Color? color, double size = 14}) {
+      final style = textTheme.bodyMedium?.copyWith(
+        fontSize: size,
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        color: color,
+      );
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: style)),
+            Text(value, style: style),
+          ],
+        ),
+      );
+    }
+
+    final showSubtotal = benefitsCount > 0 || _hasDiscount;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: scheme.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: scheme.primary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          line('Precio de la máquina', _money(widget.product.price)),
+          if (benefitsCount > 0)
+            line('+ Beneficios incluidos ($benefitsCount)',
+                _money(_benefitsTotal)),
+          if (showSubtotal) ...[
+            const Divider(height: 16),
+            line('Subtotal', _money(_subtotal), bold: true),
+          ],
+          if (_hasDiscount && _discountPercentage != null)
+            line('− Descuento ${_percentLabel(_discountPercentage!)}',
+                _money(_discountAmount),
+                color: scheme.error),
+          const Divider(height: 20),
+          line('Precio Final Contado', _money(_finalPrice),
+              bold: true, size: 18, color: scheme.primary),
+          const SizedBox(height: 4),
+          Text('Calculado automáticamente; no se puede editar.',
+              style: textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  // Mes y año de inicio de los refuerzos. Solo se ofrecen años y meses en los
+  // que vence una cuota, así el primer refuerzo siempre cae sobre una cuota;
+  // los siguientes caen cada período de refuerzo.
+  Widget _buildFirstReinforcementSelector() {
+    final n = _numberOfInstallments;
+    final textTheme = Theme.of(context).textTheme;
+    if (n == null || n < 1) {
+      return Text('Ingrese la cantidad de cuotas para elegir el mes de inicio.',
+          style: textTheme.bodySmall);
+    }
+    final dueMonths =
+        FinancingSchedule.dueMonths(DateTime.now(), n, _paymentFrequency!);
+    final selected = _firstReinforcementInstallment;
+    final valid = selected != null && selected >= 1 && selected <= n;
+    final selectedDate = valid ? dueMonths[selected - 1] : null;
+
+    final years = dueMonths.map((d) => d.year).toSet().toList();
+    // Cuotas del año elegido: nombre del mes -> número de cuota
+    final monthsInYear = <String, int>{
+      for (var i = 0; i < n; i++)
+        if (dueMonths[i].year == selectedDate?.year)
+          FinancingSchedule.monthNames[dueMonths[i].month - 1]: i + 1,
+    };
+    final max = valid
+        ? FinancingSchedule.maxReinforcements(
+            numberOfInstallments: n,
+            paymentFrequency: _paymentFrequency!,
+            reinforcementFrequency: _reinforcementFrequency!,
+            firstInstallment: selected,
+          )
+        : 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: CustomDropdown(
+                label: 'Mes de Inicio',
+                value: selectedDate == null
+                    ? null
+                    : FinancingSchedule.monthNames[selectedDate.month - 1],
+                items: monthsInYear.keys.toList(),
+                onChanged: (value) => setState(() {
+                  _firstReinforcementInstallment = monthsInYear[value];
+                }),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: CustomDropdown(
+                label: 'Año de Inicio',
+                value: selectedDate?.year.toString(),
+                items: years.map((y) => '$y').toList(),
+                onChanged: (value) => setState(() {
+                  final year = int.parse(value!);
+                  // Se mantiene el mes si ese año tiene cuota en ese mes; si
+                  // no, se toma la primera cuota del año
+                  final sameMonth = dueMonths.indexWhere((d) =>
+                      d.year == year && d.month == selectedDate?.month);
+                  final firstOfYear =
+                      dueMonths.indexWhere((d) => d.year == year);
+                  _firstReinforcementInstallment =
+                      (sameMonth >= 0 ? sameMonth : firstOfYear) + 1;
+                }),
+              ),
+            ),
+          ],
+        ),
+        if (valid) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Primer refuerzo en la cuota $selected. Desde ahí entran hasta '
+            '$max refuerzos ${_reinforcementFrequency!.toLowerCase()}es.',
+            style: textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onBackground,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
     );
   }

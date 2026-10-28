@@ -72,7 +72,6 @@ class PdfGenerator {
     double generatedTotalToPay = 0.0;
 
     if (paymentMethod == 'Financiado' &&
-        currency != null &&
         paymentFrequency != null &&
         numberOfInstallments != null) {
       double capital = price - (delivery ?? 0);

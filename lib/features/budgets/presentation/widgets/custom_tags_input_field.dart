@@ -81,7 +81,7 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
                     fontWeight: FontWeight.w600,
                     color: Theme.of(context)
                         .colorScheme
-                        .onBackground
+                        .onSurface
                         .withOpacity(0.7),
                   ),
               children: [
@@ -159,10 +159,8 @@ class _CustomTagsInputFieldState extends State<CustomTagsInputField> {
             'Otro Beneficio (Personalizado)',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onBackground
-                      .withOpacity(0.7),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
           ),
         ),

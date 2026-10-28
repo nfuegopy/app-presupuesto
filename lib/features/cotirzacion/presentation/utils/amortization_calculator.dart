@@ -42,8 +42,6 @@
 //   }
 // }
 
-import 'dart:math';
-
 class AmortizationCalculator {
   static List<Map<String, dynamic>> calculateFrenchAmortization({
     required double capital,

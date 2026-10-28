@@ -12,3 +12,4 @@ flutter_export_environment.sh
 .idea/
 *.lock
 *.DS_Store
+init_database.sql

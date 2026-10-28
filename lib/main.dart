@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/domain/usecases/sign_in.dart';
-import 'features/auth/domain/usecases/create_user.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/products/presentation/providers/product_provider.dart';
 import 'features/products/domain/usecases/get_products.dart';
@@ -14,9 +13,7 @@ import 'features/products/data/repositories/product_repository_impl.dart';
 import 'features/budgets/presentation/providers/budget_provider.dart';
 import 'features/budgets/domain/usecases/create_budget.dart';
 import 'features/budgets/data/repositories/budget_repository_impl.dart';
-import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart'; // Añadir esta importación
-import 'features/cotirzacion/data/repositories/cotizacion_repository_impl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +42,6 @@ void main() async {
   final productRepository = ProductRepositoryImpl();
   final budgetRepository = BudgetRepositoryImpl(FirebaseFirestore.instance);
   final signInUseCase = SignIn(authRepository);
-  final createUserUseCase = CreateUser(authRepository);
   final getProductsUseCase = GetProducts(productRepository);
   final createBudgetUseCase = CreateBudget(budgetRepository);
 
@@ -55,7 +51,6 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             signInUseCase: signInUseCase,
-            createUserUseCase: createUserUseCase,
             authRepository: authRepository,
           ),
         ),

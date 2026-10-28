@@ -46,7 +46,7 @@ class CustomDropdown extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Theme.of(context)
                       .colorScheme
-                      .onBackground
+                      .onSurface
                       .withOpacity(labelOpacity),
                 ),
           ),

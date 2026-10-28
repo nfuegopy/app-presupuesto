@@ -18,11 +18,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nombreController = TextEditingController();
-  final _apellidoController = TextEditingController();
-  final _registerEmailController = TextEditingController();
-  final _registerPasswordController = TextEditingController();
-  bool _isRegistering = false;
 
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _biometricsAvailable = false;
@@ -34,7 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (authProvider.storedEmail != null) {
       _emailController.text = authProvider.storedEmail!;
     }
-    _registerEmailController.text = '@enginepy.com';
     _checkBiometrics();
   }
 
@@ -74,10 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _nombreController.dispose();
-    _apellidoController.dispose();
-    _registerEmailController.dispose();
-    _registerPasswordController.dispose();
     super.dispose();
   }
 
@@ -97,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       // Fondo limpio
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -119,18 +109,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    _isRegistering ? 'Crear Cuenta' : 'Bienvenido',
+                    'Bienvenido',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onBackground,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _isRegistering
-                        ? 'Ingresa tus datos para comenzar'
-                        : 'Inicia sesión para continuar',
+                    'Inicia sesión para continuar',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey,
                         ),
@@ -139,133 +127,77 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 40),
 
                   // --- FORMULARIO ---
-                  if (!_isRegistering) ...[
-                    // LOGIN FORM
-                    CustomTextField(
-                      controller: _emailController,
-                      label: 'Correo Electrónico',
-                      keyboardType: TextInputType.emailAddress,
-                      prefixIcon: Icons.email_outlined,
-                    ),
-                    const SizedBox(height: 20),
-                    CustomTextField(
-                      controller: _passwordController,
-                      label: 'Contraseña',
-                      obscureText: true,
-                      prefixIcon: Icons.lock_outline,
-                    ),
+                  // LOGIN FORM
+                  CustomTextField(
+                    controller: _emailController,
+                    label: 'Correo Electrónico',
+                    keyboardType: TextInputType.emailAddress,
+                    prefixIcon: Icons.email_outlined,
+                  ),
+                  const SizedBox(height: 20),
+                  CustomTextField(
+                    controller: _passwordController,
+                    label: 'Contraseña',
+                    obscureText: true,
+                    prefixIcon: Icons.lock_outline,
+                  ),
 
-                    // Olvidaste contraseña alineado
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => _showResetPasswordDialog(context),
-                        child: Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                  // Olvidaste contraseña alineado
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => _showResetPasswordDialog(context),
+                      child: Text(
+                        '¿Olvidaste tu contraseña?',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                    // BOTONES DE ACCIÓN
-                    Row(
-                      children: [
-                        Expanded(
-                          child: CustomButton(
-                            text: 'Ingresar',
-                            onPressed: () {
-                              final email = _emailController.text.trim();
-                              final password = _passwordController.text.trim();
-                              if (email.isEmpty || password.isEmpty) return;
-                              authProvider.signIn(email, password);
-                            },
-                            isLoading: authProvider.isLoading,
-                          ),
+                  // BOTONES DE ACCIÓN
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomButton(
+                          text: 'Ingresar',
+                          onPressed: () {
+                            final email = _emailController.text.trim();
+                            final password = _passwordController.text.trim();
+                            if (email.isEmpty || password.isEmpty) return;
+                            authProvider.signIn(email, password);
+                          },
+                          isLoading: authProvider.isLoading,
                         ),
-                        if (_biometricsAvailable) ...[
-                          const SizedBox(width: 16),
-                          GestureDetector(
-                            onTap:
-                                authProvider.isLoading ? null : _authenticate,
-                            child: Container(
-                              height: 56,
-                              width: 56,
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.grey.withOpacity(0.2),
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.fingerprint,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 28,
+                      ),
+                      if (_biometricsAvailable) ...[
+                        const SizedBox(width: 16),
+                        GestureDetector(
+                          onTap: authProvider.isLoading ? null : _authenticate,
+                          child: Container(
+                            height: 56,
+                            width: 56,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.grey.withOpacity(0.2),
                               ),
                             ),
+                            child: Icon(
+                              Icons.fingerprint,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 28,
+                            ),
                           ),
-                        ]
-                      ],
-                    ),
-                  ] else ...[
-                    // REGISTER FORM
-                    CustomTextField(
-                      controller: _nombreController,
-                      label: 'Nombre',
-                      prefixIcon: Icons.person_outline,
-                    ),
-                    const SizedBox(height: 20),
-                    CustomTextField(
-                      controller: _apellidoController,
-                      label: 'Apellido',
-                      prefixIcon: Icons.person_outline,
-                    ),
-                    const SizedBox(height: 20),
-                    // Nota: Aquí podrías usar EmailTextField o CustomTextField
-                    CustomTextField(
-                      controller: _registerEmailController,
-                      label: 'Correo Electrónico (@enginepy.com)',
-                      prefixIcon: Icons.alternate_email,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 20),
-                    CustomTextField(
-                      controller: _registerPasswordController,
-                      label: 'Contraseña',
-                      obscureText: true,
-                      prefixIcon: Icons.lock_outline,
-                    ),
-                    const SizedBox(height: 32),
-                    CustomButton(
-                      text: 'Registrarse',
-                      onPressed: () {
-                        // ... Lógica de validación existente ...
-                        final nombre = _nombreController.text.trim();
-                        final apellido = _apellidoController.text.trim();
-                        final email = _registerEmailController.text.trim();
-                        final password =
-                            _registerPasswordController.text.trim();
-
-                        // Validaciones rápidas
-                        if (nombre.isEmpty ||
-                            apellido.isEmpty ||
-                            password.length < 6) return;
-
-                        authProvider.createUser(
-                          email: email,
-                          password: password,
-                          nombre: nombre,
-                          apellido: apellido,
-                        );
-                      },
-                      isLoading: authProvider.isLoading,
-                    ),
-                  ],
+                        ),
+                      ]
+                    ],
+                  ),
 
                   // --- MENSAJE DE ERROR ---
                   if (authProvider.errorMessage != null)
@@ -281,32 +213,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 40),
 
-                  // --- TOGGLE LOGIN/REGISTER ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _isRegistering
-                            ? '¿Ya tienes cuenta?'
-                            : '¿No tienes cuenta?',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _isRegistering = !_isRegistering;
-                            authProvider.setErrorMessage(''); // Limpiar errores
-                          });
-                        },
-                        child: Text(
-                          _isRegistering ? 'Iniciar Sesión' : 'Crear Cuenta',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
+                  // Las cuentas las crea el administrador desde el panel
+                  Text(
+                    '¿No tienes cuenta? Solicítala al administrador.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.grey),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

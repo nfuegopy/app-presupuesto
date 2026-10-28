@@ -5,12 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import '../../data/models/client_model.dart';
 import '../../../products/domain/entities/product.dart';
 import 'dart:math';
-import 'package:flutter/services.dart' show rootBundle;
 
 class PdfGenerator {
   Future<Uint8List> generateBudgetPdf({
@@ -125,8 +123,9 @@ class PdfGenerator {
     final schedule = amortizationSchedule ?? [];
 
     if (paymentMethod == 'Financiado' && schedule.isNotEmpty) {
-      generatedMonthlyPayment =
-          schedule.isNotEmpty ? (schedule[0]['pago_total'] as double) : 0.0;
+      // Cuota base: sin el refuerzo, por si el primero cae en la cuota 1
+      generatedMonthlyPayment = (schedule[0]['pago_total'] as double) -
+          ((schedule[0]['refuerzo'] as double?) ?? 0.0);
 
       String planName = '';
       switch (paymentFrequency) {
@@ -261,14 +260,14 @@ class PdfGenerator {
                   style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
               pw.SizedBox(height: 4),
               pw.Text(
-                  'Precio Unitario (con dcto): $currency ${currencyFormat.format(price)}.-',
+                  'Precio Final Contado (con dcto): $currency ${currencyFormat.format(price)}.-',
                   style: pw.TextStyle(
                       fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.black)),
             ] else ...[
               pw.Text(
-                  'Precio Unitario: $currency ${currencyFormat.format(price)}.-',
+                  'Precio Final Contado: $currency ${currencyFormat.format(price)}.-',
                   style: pw.TextStyle(
                       fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
@@ -276,24 +275,26 @@ class PdfGenerator {
             ],
             // --- FIN CAMBIO DESCUENTO ---
 
-            // --- BLOQUE DESGLOSE DE ENTREGA ---
-            pw.SizedBox(height: 8),
-            pw.Text(
-                'Entrega inicial: $currency ${currencyFormat.format(delivery ?? 0.0)}.-',
-                style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
-            if (deliveryVehicle != null && deliveryVehicle > 0) ...[
-              pw.SizedBox(height: 4),
-              // --- CAMBIO: Texto "Entrega Usado" ---
+            // --- BLOQUE DESGLOSE DE ENTREGA (solo financiado, AMIN-13) ---
+            if (paymentMethod == 'Financiado') ...[
+              pw.SizedBox(height: 8),
               pw.Text(
-                  'Entrega de usado: $currency ${currencyFormat.format(deliveryVehicle)}.-',
+                  'Entrega inicial: $currency ${currencyFormat.format(delivery ?? 0.0)}.-',
                   style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                  'Entrega Total: $currency ${currencyFormat.format(totalDelivery)}.-',
-                  style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.black)),
+              if (deliveryVehicle != null && deliveryVehicle > 0) ...[
+                pw.SizedBox(height: 4),
+                // --- CAMBIO: Texto "Entrega Usado" ---
+                pw.Text(
+                    'Entrega de usado: $currency ${currencyFormat.format(deliveryVehicle)}.-',
+                    style: pw.TextStyle(fontSize: 14, color: PdfColors.black)),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                    'Entrega Total: $currency ${currencyFormat.format(totalDelivery)}.-',
+                    style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.black)),
+              ],
             ],
             pw.SizedBox(height: 16),
             // --- FIN BLOQUE DESGLOSE ---
@@ -431,7 +432,7 @@ class PdfGenerator {
                       child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            pw.Text('Beneficios',
+                            pw.Text('Beneficios incluidos',
                                 style: pw.TextStyle(
                                     fontSize: 14,
                                     fontWeight: pw.FontWeight.bold,

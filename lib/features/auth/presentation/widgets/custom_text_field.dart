@@ -9,6 +9,7 @@ class CustomTextField extends StatelessWidget {
   final String? errorText;
   final IconData? prefixIcon;
   final int? maxLines;
+  final bool readOnly;
 
   const CustomTextField({
     super.key,
@@ -20,6 +21,7 @@ class CustomTextField extends StatelessWidget {
     this.errorText,
     this.prefixIcon,
     this.maxLines = 1,
+    this.readOnly = false,
   });
 
   @override
@@ -37,13 +39,13 @@ class CustomTextField extends StatelessWidget {
           isRequired ? '$label *' : label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color:
-                    Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           keyboardType: keyboardType,
           maxLines: maxLines,
           obscureText: obscureText,

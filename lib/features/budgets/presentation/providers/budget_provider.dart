@@ -11,8 +11,8 @@ import '../../../products/domain/entities/product.dart';
 import '../../data/models/client_model.dart';
 import '../utils/pdf_generator.dart';
 import '../utils/amortization_calculator.dart';
+import '../utils/financing_schedule.dart';
 import 'dart:typed_data';
-import 'dart:math';
 
 class BudgetProvider with ChangeNotifier {
   Client? _client;
@@ -70,6 +70,13 @@ class BudgetProvider with ChangeNotifier {
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
 
+  // Tope de descuento definido por el administrador (config/descuentos).
+  // null mientras no se cargó o si el admin no lo definió.
+  double? _maxDiscountPercentage;
+  bool _isLoadingDiscountConfig = false;
+  double? get maxDiscountPercentage => _maxDiscountPercentage;
+  bool get isLoadingDiscountConfig => _isLoadingDiscountConfig;
+
   // --- CAMBIO: Getters de Descuento ---
   bool get hasDiscount => _hasDiscount;
   double? get realPrice => _realPrice;
@@ -106,6 +113,64 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // 10.0 -> "10", 4.5 -> "4,5"
+  static String _formatPercent(double value) =>
+      (value == value.roundToDouble() ? value.toInt().toString() : '$value')
+          .replaceAll('.', ',');
+
+  Future<void> loadDiscountConfig() async {
+    // Sin notifyListeners aquí: se llama desde initState del formulario
+    _isLoadingDiscountConfig = true;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('config')
+          .doc('descuentos')
+          .get();
+      final value = doc.data()?['max_discount_percentage'];
+      _maxDiscountPercentage = value is num ? value.toDouble() : null;
+    } catch (e) {
+      debugPrint('[BudgetProvider] Error al cargar el descuento máximo: $e');
+      _maxDiscountPercentage = null;
+    } finally {
+      _isLoadingDiscountConfig = false;
+      notifyListeners();
+    }
+  }
+
+  // Tasa de descuento bancaria anual, en % (campo `interes` de la colección
+  // `interes` del admin, texto con coma decimal: "9,5"), y margen para cargos
+  // bancarios en % (campo `margen_cargos`). Si no están cargados o no son
+  // válidos se usan 9,5% (Sudameris, el banco más caro) y 2%.
+  static const double _defaultAnnualInterestRate = 9.5;
+  static const double _defaultMarginPercentage = 2;
+  double _annualInterestRate = _defaultAnnualInterestRate;
+  double _marginPercentage = _defaultMarginPercentage;
+  double get annualInterestRate => _annualInterestRate;
+  double get marginPercentage => _marginPercentage;
+
+  static double? _parsePercent(Object? raw) {
+    final value = raw is num
+        ? raw.toDouble()
+        : double.tryParse('${raw ?? ''}'.trim().replaceAll(',', '.'));
+    return value != null && value >= 0 && value < 100 ? value : null;
+  }
+
+  Future<void> loadInterestRate() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('interes').limit(1).get();
+      final data = snapshot.docs.isEmpty ? null : snapshot.docs.first.data();
+      _annualInterestRate =
+          _parsePercent(data?['interes']) ?? _defaultAnnualInterestRate;
+      _marginPercentage =
+          _parsePercent(data?['margen_cargos']) ?? _defaultMarginPercentage;
+    } catch (e) {
+      debugPrint('[BudgetProvider] Error al cargar el interés: $e');
+      _annualInterestRate = _defaultAnnualInterestRate;
+      _marginPercentage = _defaultMarginPercentage;
+    }
+  }
+
   void updateClient({
     required String razonSocial,
     required String ruc,
@@ -118,11 +183,6 @@ class BudgetProvider with ChangeNotifier {
   }) {
     if (razonSocial.isEmpty || ruc.isEmpty) {
       _error = 'Razón Social y RUC son obligatorios.';
-      notifyListeners();
-      return;
-    }
-    if (telefono == null || telefono.isEmpty) {
-      _error = 'El número de teléfono es obligatorio.';
       notifyListeners();
       return;
     }
@@ -161,6 +221,8 @@ class BudgetProvider with ChangeNotifier {
     double? reinforcementAmount,
     String? reinforcementMonth,
     int? reinforcementYear,
+    // Número de cuota en la que cae el primer refuerzo
+    int? firstReinforcementInstallment,
     String? validityOffer,
     String? commercialConditions,
     String? benefits,
@@ -194,143 +256,90 @@ class BudgetProvider with ChangeNotifier {
     _realPrice = realPrice;
     _discountPercentage = discountPercentage;
 
+    // El descuento nunca puede superar el tope del administrador
+    if (_hasDiscount &&
+        (discountPercentage == null ||
+            _maxDiscountPercentage == null ||
+            discountPercentage <= 0 ||
+            discountPercentage > _maxDiscountPercentage!)) {
+      _error = _maxDiscountPercentage == null
+          ? 'El descuento no está habilitado por el administrador.'
+          : 'Seleccione un descuento de hasta ${_formatPercent(_maxDiscountPercentage!)}%.';
+      notifyListeners();
+      return;
+    }
+
     // --- SEGURO DE VIDA DESACTIVADO ---
     _lifeInsuranceAmount =
         null; // Se establece a null para omitirlo del cálculo
     // --- FIN DE LA MODIFICACIÓN ---
 
-    if (paymentMethod == 'Financiado' &&
-        numberOfInstallments != null &&
-        delivery != null) {
-      // --- INICIO DE LA MODIFICACIÓN (Lógica Interés Compuesto Escalonado) ---
+    if (paymentMethod == 'Financiado') {
+      final planError = FinancingSchedule.validate(
+        price: price,
+        totalDelivery: (delivery ?? 0.0) + (deliveryVehicle ?? 0.0),
+        numberOfInstallments: numberOfInstallments,
+        paymentFrequency: paymentFrequency,
+        hasReinforcements: hasReinforcements == true,
+        reinforcementFrequency: reinforcementFrequency,
+        firstInstallment: firstReinforcementInstallment,
+        numberOfReinforcements: numberOfReinforcements,
+        reinforcementAmount: reinforcementAmount,
+      );
+      if (planError != null) {
+        _error = planError;
+        notifyListeners();
+        return;
+      }
+    }
 
-      // 1. Calcular Años de financiación
-      int installmentsPerYear = 12;
-      if (paymentFrequency == 'Trimestral') installmentsPerYear = 4;
-      if (paymentFrequency == 'Semestral') installmentsPerYear = 2;
-      double years = numberOfInstallments / installmentsPerYear;
+    if (paymentMethod == 'Financiado' && numberOfInstallments != null) {
+      final double capitalToFinance =
+          price - (delivery ?? 0.0) - (deliveryVehicle ?? 0.0);
+      // Fecha valor: hoy, sin hora; las cuotas vencen el mismo día del mes
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, now.day);
 
-      // 2. Definir la tasa (1.072)
-      const double interestMultiplier = 1.072; // (1 + 0.072)
-
-      // 3. Calcular Años CON Interés (aplica desde la cuota 1, sin año gratis)
-      final double yearsWithInterest = years;
-
-      // 4. Calcular capital a financiar
-      double effectivePrice = price;
-      double totalDelivery = (delivery ?? 0.0) + (deliveryVehicle ?? 0.0);
-      double capitalToFinance = effectivePrice - totalDelivery;
-
-      // 5. Calcular el Monto Total Financiado (Tasa Compuesta)
-      double totalFinanciado =
-          capitalToFinance * pow(interestMultiplier, yearsWithInterest);
-
-      // 6. Calcular Coeficiente Total (CON PROTECCIÓN DIVISIÓN CERO)
-      double financingCoefficient;
-      if (capitalToFinance <= 0) {
-        financingCoefficient = 1.0;
-      } else {
-        financingCoefficient = totalFinanciado / capitalToFinance;
+      final termError = AmortizationCalculator.termError(
+        start: start,
+        dueDates: FinancingSchedule.dueDates(
+            start, numberOfInstallments, paymentFrequency!),
+        annualRate: _annualInterestRate,
+      );
+      if (termError != null) {
+        _error = termError;
+        _amortizationSchedule = null;
+        notifyListeners();
+        return;
       }
 
-      // --- FIN DE LA MODIFICACIÓN ---
-
-      // Lógica corregida para generar refuerzos alineados a las cuotas
-      final reinforcementsMap = hasReinforcements == true &&
-              numberOfReinforcements != null &&
-              reinforcementAmount != null
-          ? _generateReinforcements(
-              numberOfReinforcements,
-              reinforcementAmount,
-              reinforcementFrequency!,
-              paymentFrequency ?? 'Mensual', // Pasamos la frecuencia de pago
+      // Refuerzos: el primero en la cuota elegida y los siguientes cada
+      // período de refuerzo (ya validado arriba)
+      final reinforcementsMap = hasReinforcements == true
+          ? FinancingSchedule.reinforcements(
+              paymentFrequency: paymentFrequency,
+              reinforcementFrequency: reinforcementFrequency!,
+              firstInstallment: firstReinforcementInstallment!,
+              numberOfReinforcements: numberOfReinforcements!,
+              amount: reinforcementAmount!,
             )
           : null;
 
-      debugPrint(
-          '[BudgetProvider] Calculando amortización INTERÉS COMPUESTO (Calculada): '
-          'capital a financiar=${capitalToFinance.toStringAsFixed(2)}, '
-          '# de cuotas=$numberOfInstallments, '
-          'Años Totales=${years.toStringAsFixed(1)}, '
-          'Años CON Interés=${yearsWithInterest.toStringAsFixed(1)}, '
-          'Coeficiente Total CALCULADO=${financingCoefficient.toStringAsFixed(4)}');
-
       _amortizationSchedule =
-          AmortizationCalculator.calculateFlatRateAmortization(
+          AmortizationCalculator.calculateBankDiscountSchedule(
         capital: capitalToFinance,
+        start: start,
         numberOfInstallments: numberOfInstallments,
-        coefficient: financingCoefficient,
+        annualRate: _annualInterestRate,
+        marginPercentage: _marginPercentage,
         reinforcements: reinforcementsMap,
-        paymentFrequency: paymentFrequency ?? 'Mensual',
+        paymentFrequency: paymentFrequency,
       );
     } else {
       _amortizationSchedule = null;
     }
 
     notifyListeners();
-  }
-
-  // --- MÉTODO CORREGIDO PARA GENERAR REFUERZOS ---
-  Map<int, double> _generateReinforcements(
-    int numberOfReinforcements,
-    double reinforcementAmount,
-    String reinforcementFrequency,
-    String paymentFrequency,
-  ) {
-    Map<int, double> reinforcements = {};
-
-    // 1. Determinar intervalo de meses de la CUOTA (Divisor)
-    int paymentInterval;
-    switch (paymentFrequency) {
-      case 'Trimestral':
-        paymentInterval = 3;
-        break;
-      case 'Semestral':
-        paymentInterval = 6;
-        break;
-      case 'Anual':
-        paymentInterval = 12;
-        break;
-      default:
-        paymentInterval = 1; // Mensual
-    }
-
-    // 2. Determinar intervalo de meses del REFUERZO (Multiplicador)
-    int reinforcementInterval;
-    switch (reinforcementFrequency) {
-      case 'Trimestral':
-        reinforcementInterval = 3;
-        break;
-      case 'Semestral':
-        reinforcementInterval = 6;
-        break;
-      case 'Anual':
-        reinforcementInterval = 12;
-        break;
-      default:
-        reinforcementInterval = 12;
-    }
-
-    for (int i = 1; i <= numberOfReinforcements; i++) {
-      // Mes absoluto donde cae el refuerzo (ej: Refuerzo anual 1 = Mes 12)
-      int monthOfReinforcement = i * reinforcementInterval;
-
-      // Calcular a qué número de CUOTA corresponde ese mes
-      // Ejemplo: Mes 12 / Semestral (6) = Cuota #2
-      if (monthOfReinforcement % paymentInterval == 0) {
-        int installmentIndex = monthOfReinforcement ~/ paymentInterval;
-        reinforcements[installmentIndex] = reinforcementAmount;
-      } else {
-        // Aquí podrías manejar el caso si un refuerzo cae en un mes donde no hay cuota
-        // (Por ahora se omite si no coincide exactamente)
-        debugPrint(
-            '[BudgetProvider] ADVERTENCIA: Refuerzo en mes $monthOfReinforcement no coincide con frecuencia de pago $paymentFrequency');
-      }
-    }
-
-    debugPrint(
-        '[BudgetProvider] Refuerzos generados (Cuota -> Monto): $reinforcements');
-    return reinforcements;
   }
 
   Future<void> createBudget() async {
@@ -352,6 +361,9 @@ class BudgetProvider with ChangeNotifier {
     }
 
     try {
+      // El formulario ya no pide email, teléfono, departamento ni ciudad
+      // (AMIN-05/06): solo se actualizan los campos que se cargan, para no
+      // borrar los datos de contacto que ya tienen los clientes existentes.
       if (_selectedClientId != null) {
         _clientId = _selectedClientId;
         final clientDocRef =
@@ -359,10 +371,6 @@ class BudgetProvider with ChangeNotifier {
         await clientDocRef.update({
           'razonSocial': _client!.razonSocial,
           'ruc': _client!.ruc,
-          'email': _client!.email,
-          'telefono': _client!.telefono,
-          'ciudad': _client!.ciudad,
-          'departamento': _client!.departamento,
           'clientType': _client!.clientType,
         });
       } else {
@@ -379,10 +387,6 @@ class BudgetProvider with ChangeNotifier {
               .doc(_clientId)
               .update({
             'razonSocial': _client!.razonSocial,
-            'email': _client!.email,
-            'telefono': _client!.telefono,
-            'ciudad': _client!.ciudad,
-            'departamento': _client!.departamento,
             'clientType': _client!.clientType,
           });
         } else {
