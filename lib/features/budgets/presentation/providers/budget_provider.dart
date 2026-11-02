@@ -66,6 +66,8 @@ class BudgetProvider with ChangeNotifier {
   String? get commercialConditions => _commercialConditions;
   String? get benefits => _benefits;
   double? get lifeInsuranceAmount => _lifeInsuranceAmount;
+  double? get lifeInsurancePercentage =>
+      _lifeInsuranceAmount == null ? null : _lifeInsuranceRate;
   double? get deliveryVehicle => _deliveryVehicle;
   List<Map<String, dynamic>>? get amortizationSchedule => _amortizationSchedule;
   List<ClientModel> get clients => _clients;
@@ -148,6 +150,28 @@ class BudgetProvider with ChangeNotifier {
   double get annualInterestRate => _annualInterestRate;
   double get marginPercentage => _marginPercentage;
 
+  // Seguro de vida: solo Persona Física y solo Financiado. Se activa y se fija
+  // el porcentaje desde el admin (campos `seguro_vida_activo` y
+  // `seguro_vida_porcentaje` de la colección `interes`). Se calcula sobre el
+  // saldo a financiar y se suma a ese saldo. Si no está cargado, no se cobra.
+  static const String lifeInsuranceClientType = 'Persona Física';
+  bool _lifeInsuranceEnabled = false;
+  double _lifeInsuranceRate = 0;
+  bool get lifeInsuranceEnabled => _lifeInsuranceEnabled;
+  double get lifeInsuranceRate => _lifeInsuranceRate;
+
+  /// Monto del seguro de vida para un saldo y tipo de cliente, o null si no
+  /// corresponde (inactivo, 0%, persona jurídica o saldo no positivo).
+  double? lifeInsuranceFor({required String? clientType, required double balance}) {
+    if (!_lifeInsuranceEnabled ||
+        _lifeInsuranceRate <= 0 ||
+        clientType != lifeInsuranceClientType ||
+        balance <= 0) {
+      return null;
+    }
+    return (balance * _lifeInsuranceRate / 100 * 100).roundToDouble() / 100;
+  }
+
   static double? _parsePercent(Object? raw) {
     final value = raw is num
         ? raw.toDouble()
@@ -164,11 +188,16 @@ class BudgetProvider with ChangeNotifier {
           _parsePercent(data?['interes']) ?? _defaultAnnualInterestRate;
       _marginPercentage =
           _parsePercent(data?['margen_cargos']) ?? _defaultMarginPercentage;
+      _lifeInsuranceEnabled = data?['seguro_vida_activo'] == true;
+      _lifeInsuranceRate = _parsePercent(data?['seguro_vida_porcentaje']) ?? 0;
     } catch (e) {
       debugPrint('[BudgetProvider] Error al cargar el interés: $e');
       _annualInterestRate = _defaultAnnualInterestRate;
       _marginPercentage = _defaultMarginPercentage;
+      _lifeInsuranceEnabled = false;
+      _lifeInsuranceRate = 0;
     }
+    notifyListeners();
   }
 
   void updateClient({
@@ -269,10 +298,8 @@ class BudgetProvider with ChangeNotifier {
       return;
     }
 
-    // --- SEGURO DE VIDA DESACTIVADO ---
-    _lifeInsuranceAmount =
-        null; // Se establece a null para omitirlo del cálculo
-    // --- FIN DE LA MODIFICACIÓN ---
+    // Seguro de vida: se calcula más abajo, solo si es Financiado
+    _lifeInsuranceAmount = null;
 
     if (paymentMethod == 'Financiado') {
       final planError = FinancingSchedule.validate(
@@ -294,8 +321,12 @@ class BudgetProvider with ChangeNotifier {
     }
 
     if (paymentMethod == 'Financiado' && numberOfInstallments != null) {
-      final double capitalToFinance =
+      final double balance =
           price - (delivery ?? 0.0) - (deliveryVehicle ?? 0.0);
+      // Persona Física: el seguro de vida se suma al saldo a financiar
+      _lifeInsuranceAmount =
+          lifeInsuranceFor(clientType: _client?.clientType, balance: balance);
+      final double capitalToFinance = balance + (_lifeInsuranceAmount ?? 0.0);
       // Fecha valor: hoy, sin hora; las cuotas vencen el mismo día del mes
       final now = DateTime.now();
       final start = DateTime(now.year, now.month, now.day);
@@ -502,6 +533,7 @@ class BudgetProvider with ChangeNotifier {
         commercialConditions: _commercialConditions,
         benefits: _benefits,
         lifeInsuranceAmount: _lifeInsuranceAmount,
+        lifeInsurancePercentage: lifeInsurancePercentage,
         // --- CAMBIO: Campos de Descuento ---
         hasDiscount: _hasDiscount,
         realPrice: _realPrice,

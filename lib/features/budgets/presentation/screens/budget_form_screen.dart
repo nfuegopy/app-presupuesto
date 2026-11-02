@@ -88,6 +88,17 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
       (double.tryParse(_deliveryController.text.trim()) ?? 0) +
       (double.tryParse(_deliveryVehicleController.text.trim()) ?? 0);
 
+  // "Incluye seguro de vida 3% (Persona Física): USD 2.282,88"
+  String? _lifeInsuranceNote(BudgetProvider provider) {
+    if (_paymentMethod != 'Financiado') return null;
+    final amount = provider.lifeInsuranceFor(
+        clientType: _clientType, balance: _finalPrice - _totalDelivery);
+    if (amount == null) return null;
+    return 'Incluye seguro de vida ${_plainNumber(provider.lifeInsuranceRate).replaceAll('.', ',')}% '
+        '(Persona Física): ${_money(amount)}, se suma al saldo a financiar. '
+        'No aparece en el PDF; va incluido en la cuota';
+  }
+
   // "12 cuotas mensuales: de Dic 2026 a Nov 2027"
   String? get _installmentsPreview {
     final n = _numberOfInstallments;
@@ -381,6 +392,18 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 onSearchChanged: (query) => _searchQuery = query,
               ),
 
+            // Cliente existente: el tipo define si se cobra seguro de vida;
+            // los clientes viejos pueden no tenerlo cargado
+            if (!_isNewClient && _selectedClient != null) ...[
+              const SizedBox(height: 16),
+              CustomDropdown(
+                label: 'Tipo de Cliente',
+                value: _clientType,
+                items: const ['Persona Física', 'Persona Jurídica'],
+                onChanged: (value) => setState(() => _clientType = value),
+              ),
+            ],
+
             // Si ES nuevo, mostrar campos obligatorios extra
             if (_isNewClient) ...[
               CustomDropdown(
@@ -535,6 +558,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                 const SizedBox(height: 8),
                 Text(_installmentsPreview!,
                     style: Theme.of(context).textTheme.bodySmall),
+              ],
+              if (_lifeInsuranceNote(budgetProvider) != null) ...[
+                const SizedBox(height: 8),
+                Text(_lifeInsuranceNote(budgetProvider)!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary)),
               ],
               if (_paymentFrequency != null) ...[
                 const SizedBox(height: 24),
@@ -703,7 +732,8 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                       content: Text('Seleccione si incluye refuerzos')));
                   return;
                 }
-                if (_isNewClient && _clientType == null) {
+                if ((_isNewClient || _selectedClient != null) &&
+                    _clientType == null) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Seleccione el tipo de cliente')));
                   return;
@@ -780,7 +810,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                     budgetProvider.updateClient(
                       razonSocial: _razonSocialController.text.trim(),
                       ruc: _rucController.text.trim(),
-                      clientType: _selectedClient!.clientType,
+                      clientType: _clientType,
                       selectedClientId: _selectedClient!.id,
                     );
                   } else {

@@ -33,6 +33,7 @@ class PdfGenerator {
     String? benefits,
     String? commercialConditions,
     double? lifeInsuranceAmount,
+    double? lifeInsurancePercentage,
     // --- CAMBIO: Parámetros de Descuento ---
     bool? hasDiscount,
     double? realPrice,
@@ -295,6 +296,8 @@ class PdfGenerator {
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.black)),
               ],
+              // El seguro de vida no se muestra al cliente: va incluido en la
+              // cuota y el vendedor lo ve solo en el formulario.
             ],
             pw.SizedBox(height: 16),
             // --- FIN BLOQUE DESGLOSE ---
